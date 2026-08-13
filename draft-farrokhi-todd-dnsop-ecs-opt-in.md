@@ -113,7 +113,7 @@ PREFIX-LENGTH is an unsigned 1-octet field.  In a query it is the largest
 number of address bits the client permits the resolver to forward.  A
 query that omits OPTION-DATA sets no such limit.  In a response it is the effective prefix
 length defined in {{resolver-behavior}}, the largest number of address
-bits the resolver will forward for that query.
+bits the resolver may forward for that query.
 
 The option has no address family field.  The resolver interprets
 PREFIX-LENGTH in the address family of the address it forwards.
@@ -160,10 +160,11 @@ address information for a query that does not include this option.
 
 For a query that includes this option, the resolver selects the address
 to forward.  Where the query also includes an ECS option with a nonzero
-SOURCE PREFIX-LENGTH, the resolver takes FAMILY and ADDRESS from that
-option, which {{Section 7.1.1 of !RFC7871}} permits, and MUST NOT use a
-different address.  Otherwise it uses the source address of the query, so
-a client need not know the address the resolver observes.
+SOURCE PREFIX-LENGTH and a FAMILY of 1 or 2, the resolver takes FAMILY
+and ADDRESS from that option, which {{Section 7.1.1 of !RFC7871}}
+permits, and MUST NOT use a different address.  Otherwise it uses the
+source address of the query, so a client need not know the address the
+resolver observes.
 
 {{Section 11.2 of !RFC7871}} requires a response to mirror the ECS fields
 of the query.  A resolver that used a different address would therefore
@@ -186,10 +187,12 @@ the incoming SOURCE PREFIX-LENGTH and its own maximum cacheable prefix
 length.
 
 A resolver SHOULD NOT forward an unroutable address supplied by a client,
-or a routable one the query source is known not to serve, both of which
-{{Section 11.3 of !RFC7871}} recommends against forwarding.  A client
-behind a NAT that does not know it is behind one supplies such an
-address.  The effective prefix length for that query is 0.
+one of the special-purpose addresses registered by {{?RFC6890}}, or a
+routable address the query source is known not to serve, none of which
+{{Section 11.3 of !RFC7871}} recommends forwarding.  A client behind a
+NAT that does not know it is behind one supplies such an address.  Where
+the resolver does not forward the supplied address, the effective prefix
+length for that query is 0.
 
 A resolver MAY decline to forward a client's address information for any
 query, a choice {{Section 5 of !RFC7871}} leaves with the resolver.  The
@@ -260,7 +263,7 @@ both.  This option asks the resolver to forward the client's address
 information.  An ECS option supplies the address to forward and, in its
 SOURCE PREFIX-LENGTH, a limit of its own.
 
-An ECS option cannot state a limit without an address.
+An ECS option cannot state a nonzero limit without an address.
 {{Section 6 of !RFC7871}} requires ADDRESS to hold the client's address
 truncated to SOURCE PREFIX-LENGTH bits, and a stub resolver behind a NAT,
 a carrier-grade NAT, or a VPN may not know its actual outbound address that is exposed to the resolver.  The private address it does know is no substitute, because
@@ -315,9 +318,9 @@ A resolver MUST NOT include this option in queries it sends to
 authoritative servers, and MUST NOT copy it from a client query into any
 upstream query.
 
-{{Section 1 of !RFC6891}} describes EDNS as "a hop-by-hop extension to
-DNS", negotiated between each pair of hosts in the resolution process,
-and {{Section 6.1.1 of !RFC6891}} forbids forwarding an OPT RR.  This
+{{Section 1 of !RFC6891}} describes EDNS as a hop-by-hop extension,
+negotiated between each pair of hosts in the resolution process, and
+{{Section 6.1.1 of !RFC6891}} forbids forwarding an OPT RR.  This
 option is an instruction to the recursive resolver that receives the
 query.  It means nothing to an authoritative server, which learns the
 client's network from an ECS option.
@@ -338,8 +341,8 @@ an authoritative server, and the Forwarding Resolver MUST report 0.
 # Caching {#caching}
 
 A resolver MUST NOT return an answer obtained using ECS to a client that
-is not a signaling client, and MUST record for each cache entry whether
-it obtained that entry using ECS.
+is not a signaling client, and MUST be able to determine, for any cache
+entry, whether it obtained that entry using ECS.
 
 {{Section 7.3.2 of !RFC7871}} matches a lookup from a client that sent no
 ECS option against that client's own address, which could return a
@@ -447,9 +450,9 @@ subjects a resolver that would otherwise forward nothing to the cache
 pollution described in {{Section 11.3 of !RFC7871}}.
 
 A resolver that implements this option and serves signaling and
-non-signaling clients from one cache returns tailored answers to clients
-that did not opt in, and no field in the response marks an answer as
-tailored.  The requirement in {{caching}} is therefore part of
+non-signaling clients from one cache, without distinguishing the entries
+obtained using ECS, returns tailored answers to clients that did not opt
+in, and no field in the response marks an answer as tailored.  The requirement in {{caching}} is therefore part of
 implementing this option.
 
 # Privacy Considerations {#privacy-considerations}
@@ -514,8 +517,8 @@ a query.
   fields for a forged response to be accepted.
 
   Handling of such an address is unspecified in any case.
-  {{Section 11.3 of !RFC7871}} has a resolver treat an unroutable
-  address as equivalent to its own identity, and
+  {{Section 11.3 of !RFC7871}} recommends that a resolver treat an
+  unroutable address as equivalent to its own identity, and
   {{Section 7.5 of !RFC7871}} lists private and unroutable address space
   among the reasons to return REFUSED.  At the time of writing, one
   large public resolver answered a query containing 203.0.113.0/24 with
@@ -588,5 +591,11 @@ will be removed before publication.
    requirement of that document, which is why this revision declares no
    such relationship.
 
-6. The registry name requested in the IANA Considerations and the
+6. The intended status is Experimental and this revision defines no
+   experiment.  A later revision should state what is being evaluated
+   and what would count as success, and should carry an implementation
+   status section as {{?RFC7942}} describes once a reference
+   implementation exists.
+
+7. The registry name requested in the IANA Considerations and the
    human-readable name of the option are provisional.
