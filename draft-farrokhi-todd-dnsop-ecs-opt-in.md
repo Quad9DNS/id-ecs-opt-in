@@ -30,11 +30,11 @@ author:
 
 EDNS Client Subnet (ECS) lets a recursive resolver send part of a
 client's network address to authoritative servers, which use it to tailor
-their answers.  Whether a resolver does this is determined by its
-configuration and cannot be chosen per query. An operator who wants to
-offer both tailored answers and address privacy runs two resolvers on
-separate addresses and relies on clients to choose the right one.  RFC
-7871 lets a client opt out of a default that forwards its address
+their answers.  Whether a resolver does this is set by its configuration,
+and that setting governs every client that sends no ECS option of its
+own.  An operator who wants to offer both tailored answers and address
+privacy runs a separate resolver address for each.  RFC 7871 lets a
+client opt out of a default that forwards its address
 information.  Asking instead for a shorter prefix requires the client to
 supply the address those bits are taken from, which a client behind a NAT
 or a VPN does not know.
@@ -69,8 +69,9 @@ This document defines an opt-in mechanism.  A recursive resolver that implements
 ## Scope
 
 This document defines the signal and the resolver behavior it requires.
-It does not change {{!RFC7871}}, and it does not define any new
-behavior for authoritative servers.
+It does not change the ECS option and does not define any new behavior
+for authoritative servers.  A resolver implementing it treats some
+recommendations of {{!RFC7871}} differently, which {{deviations}} lists.
 
 # Conventions and Definitions
 
@@ -95,7 +96,8 @@ client asks the resolver to forward its address information.
 OPTION-CODE for this option is TBD.
 
 OPTION-LENGTH MUST have a value of 0 or 1 for queries and MUST have the
-value 1 for responses.
+value 1 for responses.  {{?RFC7314}} and {{?RFC7828}} likewise define
+options whose length differs between queries and responses.
 
 OPTION-DATA, where present, is a single field:
 
@@ -135,6 +137,11 @@ way.  A client that does not know that address can still set a limit with the
 one-octet form, which does not need one.
 {{relationship-to-ecs}} specifies how the two options interact.
 
+A client SHOULD NOT supply a private address in an ECS option, because
+{{resolver-behavior}} has the resolver forward nothing for such a query.
+A client that supplies an address and receives a value of 0 can retry
+with the one-octet form.
+
 A client MUST treat this option as absent in a response whose
 OPTION-LENGTH is not 1, and in a response that includes more than one
 instance of it.  Neither case tells the client what the resolver
@@ -152,12 +159,17 @@ A resolver implementing this document MUST NOT forward a client's
 address information for a query that does not include this option.
 
 For a query that includes this option, the resolver selects the address
-to forward.  That address is the source address of the query, so a client
-need not know the address the resolver observes.  Where the query
-included an ECS option, the resolver MAY instead take FAMILY and ADDRESS
-from that option, which {{Section 7.1.1 of !RFC7871}} permits.  That case arises
-with a query from a Forwarding Resolver, where the source address is the
-forwarder's own and not its client's.
+to forward.  Where the query also includes an ECS option with a nonzero
+SOURCE PREFIX-LENGTH, the resolver takes FAMILY and ADDRESS from that
+option, which {{Section 7.1.1 of !RFC7871}} permits, and MUST NOT use a
+different address.  Otherwise it uses the source address of the query, so
+a client need not know the address the resolver observes.
+
+{{Section 11.2 of !RFC7871}} requires a response to mirror the ECS fields
+of the query.  A resolver that used a different address would therefore
+indicate that its answer is tailored for the network the client named
+when it had asked about another, the anomaly
+{{Section 7.5 of !RFC7871}} describes.
 
 The resolver then calculates an effective prefix length, the smallest of
 
@@ -173,7 +185,13 @@ two of these four the same way, having the resolver use the shorter of
 the incoming SOURCE PREFIX-LENGTH and its own maximum cacheable prefix
 length.
 
-A resolver MAY decline to forward a client's address information for a
+A resolver SHOULD NOT forward an unroutable address supplied by a client,
+or a routable one the query source is known not to serve, both of which
+{{Section 11.3 of !RFC7871}} recommends against forwarding.  A client
+behind a NAT that does not know it is behind one supplies such an
+address.  The effective prefix length for that query is 0.
+
+A resolver MAY decline to forward a client's address information for any
 query, a choice {{Section 5 of !RFC7871}} leaves with the resolver.  The
 effective prefix length for such a query is 0.
 
@@ -203,8 +221,9 @@ calculation above reduces it to the family maximum.
 
 ### Response
 
-If the query included this option, the response MUST include exactly one
-instance of it, with PREFIX-LENGTH set to the effective prefix length.
+If the query included this option and the resolver did not treat it as
+absent, the response MUST include exactly one instance of it, with
+PREFIX-LENGTH set to the effective prefix length.
 
 If the query did not include this option, or the resolver treated it as
 absent under {{resolver-behavior}}, the response MUST NOT include this
@@ -245,9 +264,10 @@ An ECS option cannot state a limit without an address.
 {{Section 6 of !RFC7871}} requires ADDRESS to hold the client's address
 truncated to SOURCE PREFIX-LENGTH bits, and a stub resolver behind a NAT,
 a carrier-grade NAT, or a VPN may not know its actual outbound address that is exposed to the resolver.  The private address it does know is no substitute, because
-{{Section 7.5 of !RFC7871}} counts private and unroutable address space
-among the reasons to refuse the query.  Such a client sets its limit with
-the one-octet form of this option that does not need an address.
+{{Section 11.3 of !RFC7871}} recommends against forwarding such an
+address and {{resolver-behavior}} then forwards nothing for the query.
+Such a client sets its limit with the one-octet form of this option that
+does not need an address.
 
 When both options state a limit, the smaller governs, as
 {{resolver-behavior}} specifies.  A larger value in this option cannot
@@ -267,8 +287,7 @@ the query wants.  A resolver never forwards this option
 resolver to return REFUSED when it will not use a client's ECS option.  A
 resolver implementing this document answers the query instead.  It MUST
 NOT refuse a query solely because the query included an ECS option
-without this option, nor solely because it used the address it observed
-in place of the one the client supplied.  {{Section 7.5 of !RFC7871}}
+without this option.  {{Section 7.5 of !RFC7871}}
 already makes an exception of this kind, noting "that a query MUST NOT be
 refused solely because it provides 0 address bits".
 
@@ -312,9 +331,9 @@ restrictions in the incoming query from its client.
 
 A Forwarding Resolver that constructs the ECS option itself reports to
 its client the number of address bits it forwards.  Where it leaves the
-ECS option to the resolver it queries, it MUST NOT report more than the
-value in the upstream response, and MUST report 0 if that response
-includes no instance of this option.
+ECS option to the resolver it queries, that resolver forwards the
+Forwarding Resolver's own address.  No bits of the client's address reach
+an authoritative server, and the Forwarding Resolver MUST report 0.
 
 # Caching {#caching}
 
@@ -341,44 +360,51 @@ Keeping signaling and non-signaling clients on separate caches implements
 the rule above, and a resolver that already supports more than one cache
 needs no new machinery for it.
 
-# Design Rationale
+# Deviations from RFC 7871 {#deviations}
 
-This document defines a new EDNS(0) option code instead of encoding the
-signal in the ECS option, because every such encoding collides with a
-rule in {{!RFC7871}}.  {{alternatives}} records the encodings considered.
+A resolver implementing this document differs from {{!RFC7871}} in three
+places.
 
-A resolver that does not implement this option ignores it and behaves as
-it does today, because {{Section 6.1.2 of !RFC6891}} requires that "Any
-OPTION-CODE values not understood by a responder or requestor MUST be
-ignored".
+1. It answers a query whose ECS information it does not use, where
+   {{Section 7.1.1 of !RFC7871}} and {{Section 7.5 of !RFC7871}}
+   recommend REFUSED.  {{relationship-to-ecs}} states that rule and the
+   precedent {{Section 7.5 of !RFC7871}} sets for it by exempting a query
+   that provides 0 address bits from refusal.
 
-A client can request forwarding and set a limit without supplying an
-address.  The REFUSED guidance in {{Section 7.1.1 of !RFC7871}} and
-{{Section 7.5 of !RFC7871}}, and the requirement in
-{{Section 11.2 of !RFC7871}} that a response mirror the ECS fields of the
-query, apply only to a client-supplied address and thus do not cover such
-a query.
+2. It excludes entries obtained using ECS from lookups for clients that
+   did not opt in.  {{caching}} states that rule, which is stricter than
+   {{Section 7.3.2 of !RFC7871}} and serves the purpose that section
+   gives for its own.
 
-An option with different lengths in queries and responses has precedent.
-{{?RFC7314}} defines a zero-length EDNS EXPIRE option in a query and a
-four-octet one in a response, and {{?RFC7828}} keeps its TIMEOUT field
-out of queries and in responses.
+3. It reads the condition that scopes the response requirements of
+   {{Section 7.2.2 of !RFC7871}} per query.  {{relationship-to-ecs}}
+   quotes that condition and explains what follows from the reading.
 
-The resolver side needs no new permission.
-{{Section 7.1.1 of !RFC7871}} already lets a resolver use the address it
-observed in place of one the client supplied.  This document adds the
-client-side signal that asks for it.
+Whether these warrant an Updates relationship with {{!RFC7871}} is
+recorded in {{open-issues}}.
 
 # Deployment Considerations
+
+A resolver that does not implement this option ignores it and answers as
+it would have anyway, because {{Section 6.1.2 of !RFC6891}} requires that
+"Any OPTION-CODE values not understood by a responder or requestor MUST
+be ignored".  Clients and resolvers therefore need not be upgraded
+together.
+
+An operator that turns this option on changes what its existing clients
+receive.  A client that sends an ECS option alone no longer has its
+address information forwarded, and receives untailored answers until it
+also sends this option.  {{Section 5 of !RFC7871}} leaves that choice
+with the resolver.
 
 A client can discover whether a resolver implements this option by
 sending it and looking at the response, which costs one query and is
 described in {{resolver-behavior}}.  That is sufficient for most
 purposes.
 
-A resolver that does not implement this option ignores it and may forward
-the client's address information anyway, including for the query used as
-a probe.  A client probing a resolver it has not used before SHOULD
+Such a resolver may still forward the client's address information,
+including for the query used as a probe.  A client probing a resolver it
+has not used before SHOULD
 include an ECS option with SOURCE PREFIX-LENGTH 0.
 {{Section 7.1.2 of !RFC7871}} obliges a resolver that uses ECS to honor
 that opt-out, and a resolver implementing this option takes the smallest
@@ -463,85 +489,104 @@ assigned under the Expert Review policy.
 
 # Alternatives Considered {#alternatives}
 
-This appendix records the encodings considered and not adopted.
+This document defines a new EDNS(0) option code instead of encoding the
+signal in the ECS option, because every such encoding collides with a
+rule in {{!RFC7871}}.  This appendix records the encodings considered and
+not adopted.
 
-A reserved address used as a sentinel, for example an ECS option
-containing 127.0.0.1/32 that a resolver would read as an instruction to
-substitute the source address it observed.  A resolver acting on it must
-either echo the sentinel, which {{Section 7.5 of !RFC7871}} warns yields
-a response that appears tailored for the network named in the query when
-it is tailored for another, or echo the address it substituted and fail
-the check in {{Section 11.2 of !RFC7871}}, which has a client discard a
-response whose FAMILY, ADDRESS, and SOURCE PREFIX-LENGTH do not match its
-query.  That check is also a cache-poisoning defense, since an off-path
-attacker must match those fields for a forged response to be accepted.
+A client can request forwarding and set a limit without supplying an
+address.  The REFUSED guidance in {{Section 7.1.1 of !RFC7871}} and
+{{Section 7.5 of !RFC7871}}, and the requirement in
+{{Section 11.2 of !RFC7871}} that a response mirror the ECS fields of the
+query, apply only to a client-supplied address and thus do not cover such
+a query.
 
-Handling of such an address is unspecified in any case.
-{{Section 11.3 of !RFC7871}} has a resolver treat an unroutable address
-as equivalent to its own identity, and {{Section 7.5 of !RFC7871}} lists
-private and unroutable address space among the reasons to return REFUSED.
-At the time of writing, one large public resolver answered a query
-containing 203.0.113.0/24 with REFUSED while another forwarded the same
-value to the authoritative server verbatim.
+* A reserved address used as a sentinel, for example an ECS option
+  containing 127.0.0.1/32 that a resolver would read as an instruction
+  to substitute the source address it observed.  A resolver acting on it
+  must either echo the sentinel, which {{Section 7.5 of !RFC7871}} warns
+  yields a response that appears tailored for the network named in the
+  query when it is tailored for another, or echo the address it
+  substituted and fail the check in {{Section 11.2 of !RFC7871}}, which
+  has a client discard a response whose FAMILY, ADDRESS, and SOURCE
+  PREFIX-LENGTH do not match its query.  That check is also a
+  cache-poisoning defense, since an off-path attacker must match those
+  fields for a forged response to be accepted.
 
-A short ADDRESS field.  {{Section 6 of !RFC7871}} requires ADDRESS to
-hold exactly the octets needed for SOURCE PREFIX-LENGTH bits and
-recommends FORMERR for a server that receives too few or too many.  An
-empty ADDRESS is valid only with SOURCE PREFIX-LENGTH 0, which already
-means opt-out.
+  Handling of such an address is unspecified in any case.
+  {{Section 11.3 of !RFC7871}} has a resolver treat an unroutable
+  address as equivalent to its own identity, and
+  {{Section 7.5 of !RFC7871}} lists private and unroutable address space
+  among the reasons to return REFUSED.  At the time of writing, one
+  large public resolver answered a query containing 203.0.113.0/24 with
+  REFUSED while another forwarded the same value to the authoritative
+  server verbatim.
 
-The SCOPE PREFIX-LENGTH field as an extension point.
-{{Section 6 of !RFC7871}} requires it to be set to 0 in queries.
+* A short ADDRESS field.  {{Section 6 of !RFC7871}} requires ADDRESS to
+  hold exactly the octets needed for SOURCE PREFIX-LENGTH bits and
+  recommends FORMERR for a server that receives too few or too many.  An
+  empty ADDRESS is valid only with SOURCE PREFIX-LENGTH 0, which already
+  means opt-out.
 
-A novel FAMILY value.  {{Section 7.1.2 of !RFC7871}} notes that "at least
-one major authoritative server will ignore the option if FAMILY is not 1
-or 2", so such a value might degrade quietly, but that behavior is
-unspecified, and the IANA Address Family Numbers registry is not the
-place to record a DNS signaling convention.
+* The SCOPE PREFIX-LENGTH field as an extension point.
+  {{Section 6 of !RFC7871}} requires it to be set to 0 in queries.
 
-An EDNS header flag bit.  The EDNS Header Flags registry holds few bits
-and assigns them under Standards Action, which does not fit an
-experimental client preference.
+* A novel FAMILY value.  {{Section 7.1.2 of !RFC7871}} notes that "at
+  least one major authoritative server will ignore the option if FAMILY
+  is not 1 or 2", so such a value might degrade quietly, but that
+  behavior is unspecified, and the IANA Address Family Numbers registry
+  is not the place to record a DNS signaling convention.
 
-A bare opt-in with no one-octet form.  The zero-length form defined in
-{{option-format}} serves most clients, but on its own it leaves a client
-that wants a limit nowhere to put one, because an ECS option requires an
-address that client may not have, as {{relationship-to-ecs}} describes.
+* An EDNS header flag bit.  The EDNS Header Flags registry holds few
+  bits and assigns them under Standards Action, which does not fit an
+  experimental client preference.
 
-A wider payload with a family selector and a limit per family.  A client
-cannot predict the family it will be seen as coming from, and the extra
-fields add nothing beyond sending a different value per family.
+* A bare opt-in with no one-octet form.  The zero-length form defined in
+  {{option-format}} serves most clients, but on its own it leaves a
+  client that wants a limit nowhere to put one, because an ECS option
+  requires an address that client may not have, as
+  {{relationship-to-ecs}} describes.
+
+* A wider payload with a family selector and a limit per family.  A
+  client cannot predict the family it will be seen as coming from, and
+  the extra fields add nothing beyond sending a different value per
+  family.
 
 The closest prior art is EDNS-Client-Tag and EDNS-Server-Tag
 {{?I-D.bellis-dnsop-edns-tags}}, an opaque client-to-server signal with a
 response counterpart, which has the same shape as this design.  That work
 was not completed.
 
-# Open Issues
+# Open Issues {#open-issues}
 
 This section records decisions that are provisional in this revision.  It
 will be removed before publication.
 
-Whether a response to a query that included this option should always
-include it, as {{resolver-behavior}} requires, or should omit it where
-the resolver forwards nothing.  Always including it lets a client tell a
-resolver that declined from one that does not implement the option, at
-the cost of one octet in every such response.
+1. Whether a response to a query that included this option should always
+   include it, as {{resolver-behavior}} requires, or should omit it
+   where the resolver forwards nothing.  Always including it lets a
+   client tell a resolver that declined from one that does not implement
+   the option, at the cost of one octet in every such response.
 
-Whether the reported value should be the effective prefix length, as
-specified here, or the number of address bits the resolver forwarded
-while answering that query.  The two differ when the answer comes from
-cache.
+2. Whether the reported value should be the effective prefix length, as
+   specified here, or the number of address bits the resolver forwarded
+   while answering that query.  The two differ when the answer comes
+   from cache.
 
-Whether a malformed option should be treated as absent, as
-{{resolver-behavior}} specifies, or should draw a FORMERR, which
-{{?RFC9660}} requires for its own option and
-{{Section 6 of !RFC7871}} recommends for a malformed ECS option.
+3. Whether a malformed option should be treated as absent, as
+   {{resolver-behavior}} specifies, or should draw a FORMERR, which
+   {{?RFC9660}} requires for its own option and
+   {{Section 6 of !RFC7871}} recommends for a malformed ECS option.
 
-Whether the condition in {{Section 7.2.2 of !RFC7871}}, "When an
-Intermediate Nameserver uses ECS", is read per query or per server.
-{{relationship-to-ecs}} reads it per query, which lets a resolver answer
-a query that includes an ECS option without returning one.
+4. Whether the condition in {{Section 7.2.2 of !RFC7871}}, "When an
+   Intermediate Nameserver uses ECS", is read per query or per server.
+   {{relationship-to-ecs}} reads it per query, which lets a resolver
+   answer a query that includes an ECS option without returning one.
 
-The registry name requested in the IANA Considerations and the
-human-readable name of the option are provisional.
+5. Whether the differences listed in {{deviations}} warrant an Updates
+   relationship with {{!RFC7871}}.  None of them contradicts a
+   requirement of that document, which is why this revision declares no
+   such relationship.
+
+6. The registry name requested in the IANA Considerations and the
+   human-readable name of the option are provisional.
