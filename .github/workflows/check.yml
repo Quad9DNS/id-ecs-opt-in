@@ -1,0 +1,53 @@
+name: "Check Drafts"
+
+# The editor's copy workflow builds and lints, but never runs idnits.
+# This job reports nits on every push and pull request.  It does not fail
+# the build yet, because the preview build is numbered -latest and idnits
+# reports the filename as a nit until the first version is tagged.
+
+on:
+  push:
+    paths-ignore:
+    - README.md
+    - CONTRIBUTING.md
+    - LICENSE.md
+    - .gitignore
+  pull_request:
+    paths-ignore:
+    - README.md
+    - CONTRIBUTING.md
+    - LICENSE.md
+    - .gitignore
+
+jobs:
+  idnits:
+    name: "Run idnits"
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+    - name: "Checkout"
+      uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+
+    - name: "Setup"
+      id: setup
+      run: date -u "+date=%FT%T" >>"$GITHUB_OUTPUT"
+
+    - name: "Caching"
+      uses: actions/cache@v5
+      with:
+        path: |
+          .refcache
+          .venv
+          .gems
+          node_modules
+          .targets.mk
+        key: i-d-${{ steps.setup.outputs.date }}
+        restore-keys: i-d-
+
+    - name: "Run idnits"
+      uses: martinthomson/i-d-template@v1
+      with:
+        make: idnits
+        token: ${{ github.token }}
