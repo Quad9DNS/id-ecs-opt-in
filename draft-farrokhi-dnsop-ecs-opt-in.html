@@ -9,26 +9,19 @@
 <meta content="John Todd" name="author">
 <meta content="
        EDNS Client Subnet (ECS) lets a recursive resolver send part of a
-client's network address to authoritative servers, which use it to tailor
-their answers.  Whether a resolver does this is set by its configuration,
-and that setting governs every client that sends no ECS option of its
-own.  An operator who wants to offer both tailored answers and address
-privacy runs a separate resolver address for each.  RFC 7871 lets a
-client opt out of a default that forwards its address
-information.  Asking instead for a shorter prefix requires the client to
+client's network address to authoritative servers, which tailor their
+answers to it.  A resolver's configuration decides whether it does so, for
+every client that sends no ECS option of its own.  RFC 7871 lets a client
+opt out.  Asking instead for a shorter prefix requires the client to
 supply the address those bits are taken from, which a client behind a NAT
 or a VPN does not know. 
-       This document defines an opt-in mechanism. A client asks the recursive
-resolver to forward its address information by including an EDNS(0)
-option in its query, and may use that option to limit how many address
-bits the resolver forwards. A resolver that implements this document
-forwards nothing for a client that does not send the option. A resolver
-that has not implemented it ignores the option and behaves as it does
-today. An operator
-can therefore run a single resolver on one address for both the clients
-that want tailored responses and the clients that want their addresses
-withheld. Each client chooses per query. The resolver reports in its
-response how many address bits it will forward. 
+       This document defines an opt-in.  A client includes an EDNS(0) option in a
+query to ask the resolver to forward its address information, and can use
+that option to limit how many address bits the resolver forwards.  A
+resolver implementing this document forwards nothing for a client that
+does not send the option, and one that does not implement it ignores the
+option.  One resolver address can then serve clients that want tailored
+answers and those that want their addresses withheld. 
     " name="description">
 <meta content="xml2rfc 3.34.0" name="generator">
 <meta content="DNS" name="keyword">
@@ -37,7 +30,7 @@ response how many address bits it will forward.
 <meta content="EDNS Client Subnet" name="keyword">
 <meta content="privacy" name="keyword">
 <meta content="opt-in" name="keyword">
-<meta content="draft-farrokhi-todd-dnsop-ecs-opt-in-latest" name="ietf.draft">
+<meta content="draft-farrokhi-dnsop-ecs-opt-in-latest" name="ietf.draft">
 <!-- Generator version information:
   xml2rfc 3.34.0
     Python 3.14.5
@@ -53,7 +46,7 @@ response how many address bits it will forward.
     requests 2.33.1
     wcwidth 0.8.2
 -->
-<link href="draft-farrokhi-todd-dnsop-ecs-opt-in.xml" rel="alternate" type="application/rfc+xml">
+<link href="draft-farrokhi-dnsop-ecs-opt-in.xml" rel="alternate" type="application/rfc+xml">
 <link href="#copyright" rel="license">
 <style type="text/css">/*
 
@@ -1255,7 +1248,7 @@ li > p:last-of-type:only-child {
 <dt class="label-workgroup">Workgroup:</dt>
 <dd class="workgroup">Network Working Group</dd>
 <dt class="label-internet-draft">Internet-Draft:</dt>
-<dd class="internet-draft">draft-farrokhi-todd-dnsop-ecs-opt-in-latest</dd>
+<dd class="internet-draft">draft-farrokhi-dnsop-ecs-opt-in-latest</dd>
 <dt class="label-published">Published:</dt>
 <dd class="published">
 <time datetime="2026-08-14" class="published">14 August 2026</time>
@@ -1281,26 +1274,19 @@ li > p:last-of-type:only-child {
 <section id="section-abstract">
       <h2 id="abstract"><a href="#abstract" class="selfRef">Abstract</a></h2>
 <p id="section-abstract-1">EDNS Client Subnet (ECS) lets a recursive resolver send part of a
-client's network address to authoritative servers, which use it to tailor
-their answers.  Whether a resolver does this is set by its configuration,
-and that setting governs every client that sends no ECS option of its
-own.  An operator who wants to offer both tailored answers and address
-privacy runs a separate resolver address for each.  RFC 7871 lets a
-client opt out of a default that forwards its address
-information.  Asking instead for a shorter prefix requires the client to
+client's network address to authoritative servers, which tailor their
+answers to it.  A resolver's configuration decides whether it does so, for
+every client that sends no ECS option of its own.  RFC 7871 lets a client
+opt out.  Asking instead for a shorter prefix requires the client to
 supply the address those bits are taken from, which a client behind a NAT
 or a VPN does not know.<a href="#section-abstract-1" class="pilcrow">¶</a></p>
-<p id="section-abstract-2">This document defines an opt-in mechanism. A client asks the recursive
-resolver to forward its address information by including an EDNS(0)
-option in its query, and may use that option to limit how many address
-bits the resolver forwards. A resolver that implements this document
-forwards nothing for a client that does not send the option. A resolver
-that has not implemented it ignores the option and behaves as it does
-today. An operator
-can therefore run a single resolver on one address for both the clients
-that want tailored responses and the clients that want their addresses
-withheld. Each client chooses per query. The resolver reports in its
-response how many address bits it will forward.<a href="#section-abstract-2" class="pilcrow">¶</a></p>
+<p id="section-abstract-2">This document defines an opt-in.  A client includes an EDNS(0) option in a
+query to ask the resolver to forward its address information, and can use
+that option to limit how many address bits the resolver forwards.  A
+resolver implementing this document forwards nothing for a client that
+does not send the option, and one that does not implement it ignores the
+option.  One resolver address can then serve clients that want tailored
+answers and those that want their addresses withheld.<a href="#section-abstract-2" class="pilcrow">¶</a></p>
 </section>
 <div id="status-of-memo">
 <section id="section-boilerplate.1">
@@ -1436,9 +1422,26 @@ response how many address bits it will forward.<a href="#section-abstract-2" cla
 <p id="section-1-1">EDNS Client Subnet <span>[<a href="#RFC7871" class="cite xref">RFC7871</a>]</span> lets a recursive resolver send a prefix
 of the client's network address to authoritative servers, which use it to
 tailor their answers.<a href="#section-1-1" class="pilcrow">¶</a></p>
-<p id="section-1-2">A resolver either uses ECS or it does not, based on how it is configured. A client of a resolver with ECS enabled can opt out by sending an ECS option with a SOURCE PREFIX-LENGTH of 0, which <span><a href="https://rfc-editor.org/rfc/rfc7871#section-7.1.2" class="relref">Section 7.1.2</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span> obliges the recursive resolver to honor. That client can also ask for a shorter prefix, but <span><a href="https://rfc-editor.org/rfc/rfc7871#section-6" class="relref">Section 6</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span> requires the ECS option to contain the address those bits are taken from, and a client behind a NAT or a VPN does not know the address the resolver sees. A client that sends nothing has its address information forwarded.<a href="#section-1-2" class="pilcrow">¶</a></p>
-<p id="section-1-3">An operator who wants to offer ECS to some clients and withhold it from others runs a second resolver on a second address and tells users which one to use.  That increases the operational burden, resource usage and complexity. It also hands the privacy decision to whoever configures the client's resolver address, which is usually not the user whose address is forwarded.<a href="#section-1-3" class="pilcrow">¶</a></p>
-<p id="section-1-4">This document defines an opt-in mechanism.  A recursive resolver that implements it forwards a client's address information only for a query that includes the opt-in option, and that option can also limit how many address bits the resolver forwards.  The resolver reports in its response how many it applied.<a href="#section-1-4" class="pilcrow">¶</a></p>
+<p id="section-1-2">A resolver either uses ECS or it does not, based on how it is configured.
+A client of a resolver with ECS enabled can opt out by sending an ECS
+option with a SOURCE PREFIX-LENGTH of 0, which
+<span><a href="https://rfc-editor.org/rfc/rfc7871#section-7.1.2" class="relref">Section 7.1.2</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span> obliges the recursive resolver to honor.
+That client can also ask for a shorter prefix, but
+<span><a href="https://rfc-editor.org/rfc/rfc7871#section-6" class="relref">Section 6</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span> requires the ECS option to contain the address
+those bits are taken from, and a client behind a NAT or a VPN does not
+know the address the resolver sees.  A client that sends nothing has its
+address information forwarded.<a href="#section-1-2" class="pilcrow">¶</a></p>
+<p id="section-1-3">An operator who wants to offer ECS to some clients and withhold it from
+others runs a second resolver on a second address and tells users which
+one to use.  That increases the operational burden, resource usage and
+complexity.  It also hands the privacy decision to whoever configures the
+client's resolver address, which is usually not the user whose address is
+forwarded.<a href="#section-1-3" class="pilcrow">¶</a></p>
+<p id="section-1-4">This document defines an opt-in mechanism.  A recursive resolver that
+implements it forwards a client's address information only for a query
+that includes the opt-in option, and that option can also limit how many
+address bits the resolver forwards.  The resolver reports in its response
+how many it applied.<a href="#section-1-4" class="pilcrow">¶</a></p>
 <div id="scope">
 <section id="section-1.1">
         <h3 id="name-scope">
@@ -1501,9 +1504,9 @@ options whose length differs between queries and responses.<a href="#section-3.1
           </figcaption></figure>
 <p id="section-3.1-6">PREFIX-LENGTH is an unsigned 1-octet field.  In a query it is the largest
 number of address bits the client permits the resolver to forward.  A
-query that omits OPTION-DATA sets no such limit.  In a response it is the effective prefix
-length defined in <a href="#resolver-behavior" class="auto internal xref">Section 3.3</a>, the largest number of address
-bits the resolver may forward for that query.<a href="#section-3.1-6" class="pilcrow">¶</a></p>
+query that omits OPTION-DATA sets no such limit.  In a response it is the
+effective prefix length defined in <a href="#resolver-behavior" class="auto internal xref">Section 3.3</a>, the largest
+number of address bits the resolver may forward for that query.<a href="#section-3.1-6" class="pilcrow">¶</a></p>
 <p id="section-3.1-7">The option has no address family field.  The resolver interprets
 PREFIX-LENGTH in the address family of the address it forwards.<a href="#section-3.1-7" class="pilcrow">¶</a></p>
 </section>
@@ -1663,7 +1666,9 @@ SOURCE PREFIX-LENGTH, a limit of its own.<a href="#section-3.4-1" class="pilcrow
 <p id="section-3.4-2">An ECS option cannot state a nonzero limit without an address.
 <span><a href="https://rfc-editor.org/rfc/rfc7871#section-6" class="relref">Section 6</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span> requires ADDRESS to hold the client's address
 truncated to SOURCE PREFIX-LENGTH bits, and a stub resolver behind a NAT,
-a carrier-grade NAT, or a VPN may not know its actual outbound address that is exposed to the resolver.  The private address it does know is no substitute, because
+a carrier-grade NAT, or a VPN may not know its actual outbound address
+that is exposed to the resolver.  The private address it does know is no
+substitute, because
 <span><a href="https://rfc-editor.org/rfc/rfc7871#section-11.3" class="relref">Section 11.3</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span> recommends against forwarding such an
 address and <a href="#resolver-behavior" class="auto internal xref">Section 3.3</a> then forwards nothing for the query.
 Such a client sets its limit with the one-octet form of this option that
@@ -1880,8 +1885,9 @@ pollution described in <span><a href="https://rfc-editor.org/rfc/rfc7871#section
 <p id="section-7-5">A resolver that implements this option and serves signaling and
 non-signaling clients from one cache, without distinguishing the entries
 obtained using ECS, returns tailored answers to clients that did not opt
-in, and no field in the response marks an answer as tailored.  The requirement in <a href="#caching" class="auto internal xref">Section 4</a> is therefore part of
-implementing this option.<a href="#section-7-5" class="pilcrow">¶</a></p>
+in, and no field in the response marks an answer as tailored.  The
+requirement in <a href="#caching" class="auto internal xref">Section 4</a> is therefore part of implementing this
+option.<a href="#section-7-5" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="privacy-considerations">
@@ -1917,9 +1923,20 @@ identifies a client on its own.<a href="#section-8-3" class="pilcrow">¶</a></p>
 <p id="section-9-1">IANA is requested to assign an option code from the "DNS EDNS0 Option
 Codes (OPT)" registry in the "Domain Name System (DNS) Parameters"
 registry group.  Values in the range 1 to 65000 in that registry are
-assigned under the Expert Review policy.<a href="#section-9-1" class="pilcrow">¶</a></p>
-<table class="center" id="table-2">
-        <caption><a href="#table-2" class="selfRef">Table 2</a></caption>
+assigned under the Expert Review policy of
+<span><a href="https://rfc-editor.org/rfc/rfc8126#section-4.5" class="relref">Section 4.5</a> of [<a href="#RFC8126" class="cite xref">RFC8126</a>]</span>.<a href="#section-9-1" class="pilcrow">¶</a></p>
+<p id="section-9-2">That registry also sets a range aside for local and experimental use.
+This document does not take a value from it.
+<span><a href="https://rfc-editor.org/rfc/rfc8126#section-4.2" class="relref">Section 4.2</a> of [<a href="#RFC8126" class="cite xref">RFC8126</a>]</span> says of such a range that assignments from it
+"are not generally useful for broad interoperability", and that "Unless
+the registry explicitly allows it, it is not appropriate for documents to
+select explicit values from registries or ranges with this policy."  An
+assigned code point can be implemented in released software.<a href="#section-9-2" class="pilcrow">¶</a></p>
+<span id="name-edns0-option-code-requested"></span><table class="center" id="table-2">
+        <caption>
+<a href="#table-2" class="selfRef">Table 2</a>:
+<a href="#name-edns0-option-code-requested" class="selfRef">EDNS(0) Option Code Requested</a>
+        </caption>
 <thead>
           <tr>
             <th class="text-left" rowspan="1" colspan="1">Value</th>
@@ -2014,6 +2031,10 @@ assigned under the Expert Review policy.<a href="#section-9-1" class="pilcrow">�
 <dt id="RFC9250">[RFC9250]</dt>
         <dd>
 <span class="refAuthor">Huitema, C.</span>, <span class="refAuthor">Dickinson, S.</span>, and <span class="refAuthor">A. Mankin</span>, <span class="refTitle">"DNS over Dedicated QUIC Connections"</span>, <span class="seriesInfo">RFC 9250</span>, <span class="seriesInfo">DOI 10.17487/RFC9250</span>, <time datetime="2022-05" class="refDate">May 2022</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc9250">https://www.rfc-editor.org/info/rfc9250</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC8126">[RFC8126]</dt>
+        <dd>
+<span class="refAuthor">Cotton, M.</span>, <span class="refAuthor">Leiba, B.</span>, and <span class="refAuthor">T. Narten</span>, <span class="refTitle">"Guidelines for Writing an IANA Considerations Section in RFCs"</span>, <span class="seriesInfo">BCP 26</span>, <span class="seriesInfo">RFC 8126</span>, <span class="seriesInfo">DOI 10.17487/RFC8126</span>, <time datetime="2017-06" class="refDate">June 2017</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc8126">https://www.rfc-editor.org/info/rfc8126</a>&gt;</span>. </dd>
 <dd class="break"></dd>
 <dt id="I-D.bellis-dnsop-edns-tags">[I-D.bellis-dnsop-edns-tags]</dt>
         <dd>
