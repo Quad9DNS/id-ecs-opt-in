@@ -13,7 +13,6 @@ keyword:
   - EDNS Client Subnet
   - privacy
   - opt-in
-pi: [toc, tocindent, sort refs, symrefs, strict, compact, inline]
 author:
   - ins: B. Farrokhi
     name: Babak Farrokhi
@@ -29,27 +28,20 @@ author:
 --- abstract
 
 EDNS Client Subnet (ECS) lets a recursive resolver send part of a
-client's network address to authoritative servers, which use it to tailor
-their answers.  Whether a resolver does this is set by its configuration,
-and that setting governs every client that sends no ECS option of its
-own.  An operator who wants to offer both tailored answers and address
-privacy runs a separate resolver address for each.  RFC 7871 lets a
-client opt out of a default that forwards its address
-information.  Asking instead for a shorter prefix requires the client to
+client's network address to authoritative servers, which tailor their
+answers to it.  A resolver's configuration decides whether it does so, for
+every client that sends no ECS option of its own.  RFC 7871 lets a client
+opt out.  Asking instead for a shorter prefix requires the client to
 supply the address those bits are taken from, which a client behind a NAT
 or a VPN does not know.
 
-This document defines an opt-in mechanism. A client asks the recursive
-resolver to forward its address information by including an EDNS(0)
-option in its query, and may use that option to limit how many address
-bits the resolver forwards. A resolver that implements this document
-forwards nothing for a client that does not send the option. A resolver
-that has not implemented it ignores the option and behaves as it does
-today. An operator
-can therefore run a single resolver on one address for both the clients
-that want tailored responses and the clients that want their addresses
-withheld. Each client chooses per query. The resolver reports in its
-response how many address bits it will forward.
+This document defines an opt-in.  A client includes an EDNS(0) option in a
+query to ask the resolver to forward its address information, and can use
+that option to limit how many address bits the resolver forwards.  A
+resolver implementing this document forwards nothing for a client that
+does not send the option, and one that does not implement it ignores the
+option.  One resolver address can then serve clients that want tailored
+answers and those that want their addresses withheld.
 
 --- middle
 
@@ -59,11 +51,28 @@ EDNS Client Subnet {{!RFC7871}} lets a recursive resolver send a prefix
 of the client's network address to authoritative servers, which use it to
 tailor their answers.
 
-A resolver either uses ECS or it does not, based on how it is configured. A client of a resolver with ECS enabled can opt out by sending an ECS option with a SOURCE PREFIX-LENGTH of 0, which {{Section 7.1.2 of !RFC7871}} obliges the recursive resolver to honor. That client can also ask for a shorter prefix, but {{Section 6 of !RFC7871}} requires the ECS option to contain the address those bits are taken from, and a client behind a NAT or a VPN does not know the address the resolver sees. A client that sends nothing has its address information forwarded.
+A resolver either uses ECS or it does not, based on how it is configured.
+A client of a resolver with ECS enabled can opt out by sending an ECS
+option with a SOURCE PREFIX-LENGTH of 0, which
+{{Section 7.1.2 of !RFC7871}} obliges the recursive resolver to honor.
+That client can also ask for a shorter prefix, but
+{{Section 6 of !RFC7871}} requires the ECS option to contain the address
+those bits are taken from, and a client behind a NAT or a VPN does not
+know the address the resolver sees.  A client that sends nothing has its
+address information forwarded.
 
-An operator who wants to offer ECS to some clients and withhold it from others runs a second resolver on a second address and tells users which one to use.  That increases the operational burden, resource usage and complexity. It also hands the privacy decision to whoever configures the client's resolver address, which is usually not the user whose address is forwarded.
+An operator who wants to offer ECS to some clients and withhold it from
+others runs a second resolver on a second address and tells users which
+one to use.  That increases the operational burden, resource usage and
+complexity.  It also hands the privacy decision to whoever configures the
+client's resolver address, which is usually not the user whose address is
+forwarded.
 
-This document defines an opt-in mechanism.  A recursive resolver that implements it forwards a client's address information only for a query that includes the opt-in option, and that option can also limit how many address bits the resolver forwards.  The resolver reports in its response how many it applied.
+This document defines an opt-in mechanism.  A recursive resolver that
+implements it forwards a client's address information only for a query
+that includes the opt-in option, and that option can also limit how many
+address bits the resolver forwards.  The resolver reports in its response
+how many it applied.
 
 
 ## Scope
@@ -111,9 +120,9 @@ OPTION-DATA, where present, is a single field:
 
 PREFIX-LENGTH is an unsigned 1-octet field.  In a query it is the largest
 number of address bits the client permits the resolver to forward.  A
-query that omits OPTION-DATA sets no such limit.  In a response it is the effective prefix
-length defined in {{resolver-behavior}}, the largest number of address
-bits the resolver may forward for that query.
+query that omits OPTION-DATA sets no such limit.  In a response it is the
+effective prefix length defined in {{resolver-behavior}}, the largest
+number of address bits the resolver may forward for that query.
 
 The option has no address family field.  The resolver interprets
 PREFIX-LENGTH in the address family of the address it forwards.
@@ -266,7 +275,9 @@ SOURCE PREFIX-LENGTH, a limit of its own.
 An ECS option cannot state a nonzero limit without an address.
 {{Section 6 of !RFC7871}} requires ADDRESS to hold the client's address
 truncated to SOURCE PREFIX-LENGTH bits, and a stub resolver behind a NAT,
-a carrier-grade NAT, or a VPN may not know its actual outbound address that is exposed to the resolver.  The private address it does know is no substitute, because
+a carrier-grade NAT, or a VPN may not know its actual outbound address
+that is exposed to the resolver.  The private address it does know is no
+substitute, because
 {{Section 11.3 of !RFC7871}} recommends against forwarding such an
 address and {{resolver-behavior}} then forwards nothing for the query.
 Such a client sets its limit with the one-octet form of this option that
@@ -452,8 +463,9 @@ pollution described in {{Section 11.3 of !RFC7871}}.
 A resolver that implements this option and serves signaling and
 non-signaling clients from one cache, without distinguishing the entries
 obtained using ECS, returns tailored answers to clients that did not opt
-in, and no field in the response marks an answer as tailored.  The requirement in {{caching}} is therefore part of
-implementing this option.
+in, and no field in the response marks an answer as tailored.  The
+requirement in {{caching}} is therefore part of implementing this
+option.
 
 # Privacy Considerations {#privacy-considerations}
 
@@ -483,10 +495,20 @@ identifies a client on its own.
 IANA is requested to assign an option code from the "DNS EDNS0 Option
 Codes (OPT)" registry in the "Domain Name System (DNS) Parameters"
 registry group.  Values in the range 1 to 65000 in that registry are
-assigned under the Expert Review policy.
+assigned under the Expert Review policy of
+{{Section 4.5 of ?RFC8126}}.
+
+That registry also sets a range aside for local and experimental use.
+This document does not take a value from it.
+{{Section 4.2 of ?RFC8126}} says of such a range that assignments from it
+"are not generally useful for broad interoperability", and that "Unless
+the registry explicitly allows it, it is not appropriate for documents to
+select explicit values from registries or ranges with this policy."  An
+assigned code point can be implemented in released software.
 
 | Value | Name | Status | Reference |
 | TBD | edns-client-subnet-opt-in | Optional | This document |
+{: title="EDNS(0) Option Code Requested"}
 
 --- back
 
