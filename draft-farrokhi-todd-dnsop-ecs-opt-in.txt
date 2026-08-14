@@ -5,7 +5,7 @@
 Network Working Group                                        B. Farrokhi
 Internet-Draft                                                   J. Todd
 Intended status: Experimental                                      Quad9
-Expires: 14 February 2027                                 13 August 2026
+Expires: 15 February 2027                                 14 August 2026
 
 
              Client Opt-In Signaling for EDNS Client Subnet
@@ -51,7 +51,7 @@ Status of This Memo
    time.  It is inappropriate to use Internet-Drafts as reference
    material or to cite them other than as "work in progress."
 
-   This Internet-Draft will expire on 14 February 2027.
+   This Internet-Draft will expire on 15 February 2027.
 
 Copyright Notice
 
@@ -778,4 +778,4 @@ Authors' Addresses
    John Todd
    Quad9
    United States of America
-   Email: jtodd@loligo.com
+   Email: jtodd@quad9.net
