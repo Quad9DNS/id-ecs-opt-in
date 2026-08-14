@@ -24,7 +24,7 @@ author:
     name: John Todd
     org: Quad9
     country: United States of America
-    email: jtodd@loligo.com
+    email: jtodd@quad9.net
 
 --- abstract
 
