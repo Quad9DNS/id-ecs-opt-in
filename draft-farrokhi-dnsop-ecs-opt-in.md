@@ -1,7 +1,7 @@
 ---
 title: "Client Opt-In Signaling for EDNS Client Subnet"
 abbrev: "ECS Client Opt-In"
-docname: draft-farrokhi-todd-dnsop-ecs-opt-in-latest
+docname: draft-farrokhi-dnsop-ecs-opt-in-latest
 category: exp
 stream: IETF
 ipr: trust200902

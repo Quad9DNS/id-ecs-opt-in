@@ -4,10 +4,10 @@
 
 This is the working area for the individual Internet-Draft, "Client Opt-In Signaling for EDNS Client Subnet".
 
-* [Editor's Copy](https://Quad9DNS.github.io/id-ecs-opt-in/#go.draft-farrokhi-todd-dnsop-ecs-opt-in.html)
-* [Datatracker Page](https://datatracker.ietf.org/doc/draft-farrokhi-todd-dnsop-ecs-opt-in)
-* [Individual Draft](https://datatracker.ietf.org/doc/html/draft-farrokhi-todd-dnsop-ecs-opt-in)
-* [Compare Editor's Copy to Individual Draft](https://Quad9DNS.github.io/id-ecs-opt-in/#go.draft-farrokhi-todd-dnsop-ecs-opt-in.diff)
+* [Editor's Copy](https://Quad9DNS.github.io/id-ecs-opt-in/#go.draft-farrokhi-dnsop-ecs-opt-in.html)
+* [Datatracker Page](https://datatracker.ietf.org/doc/draft-farrokhi-dnsop-ecs-opt-in)
+* [Individual Draft](https://datatracker.ietf.org/doc/html/draft-farrokhi-dnsop-ecs-opt-in)
+* [Compare Editor's Copy to Individual Draft](https://Quad9DNS.github.io/id-ecs-opt-in/#go.draft-farrokhi-dnsop-ecs-opt-in.diff)
 
 
 ## Contributing
