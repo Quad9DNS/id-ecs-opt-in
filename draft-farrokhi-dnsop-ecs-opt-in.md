@@ -202,12 +202,16 @@ and FAMILY 2, so the resolver has no address to take from that option.
 Using the source address it observed instead would produce the anomaly
 described above.
 
-A resolver SHOULD NOT forward an unroutable address supplied by a client,
-one of the special-purpose addresses registered by {{?RFC6890}}, or a
-routable address the query source is known not to serve, none of which
-{{Section 11.3 of !RFC7871}} recommends forwarding.  A client behind a
-NAT that does not know it is behind one supplies such an address.  Where
-the resolver does not forward the supplied address, the effective prefix
+A resolver SHOULD NOT forward an unroutable address supplied by a
+client, such as one from the special-purpose blocks {{?RFC6890}}
+defines, or a routable address the query source is known not to serve.
+{{Section 11.3 of !RFC7871}} recommends treating an unroutable address
+as equivalent to the resolver's own identity, and ignoring and never
+forwarding an address the query source is known not to serve.  This
+document has the resolver forward nothing in either case, which is
+documented under {{deviations}}.  A client behind a NAT that does not
+know it is behind one supplies an unroutable address.  Where the
+resolver does not forward the supplied address, the effective prefix
 length for that query is 0.
 
 A resolver MAY decline to forward a client's address information for any
@@ -383,7 +387,7 @@ needs no new machinery for it.
 
 # Deviations from RFC 7871 {#deviations}
 
-A resolver implementing this document differs from {{!RFC7871}} in three
+A resolver implementing this document differs from {{!RFC7871}} in four
 places.
 
 1. It answers a query whose ECS information it does not use, where
@@ -400,6 +404,11 @@ places.
 3. It reads the condition that scopes the response requirements of
    {{Section 7.2.2 of !RFC7871}} per query.  {{relationship-to-ecs}}
    quotes that condition and explains what follows from the reading.
+
+4. It forwards nothing when it receives an unroutable address from a
+   client, where {{Section 11.3 of !RFC7871}} recommends treating that
+   address as the resolver's own identity.  This behavior is documented
+   under {{resolver-behavior}}.
 
 Whether these warrant an Updates relationship with {{!RFC7871}} is
 recorded in {{open-issues}}.
