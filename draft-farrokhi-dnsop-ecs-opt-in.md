@@ -548,11 +548,11 @@ a query.
   must either echo the sentinel, which {{Section 7.5 of !RFC7871}} warns
   yields a response that appears tailored for the network named in the
   query when it is tailored for another, or echo the address it
-  substituted and fail the check in {{Section 11.2 of !RFC7871}}, which
-  has a client discard a response whose FAMILY, ADDRESS, and SOURCE
-  PREFIX-LENGTH do not match its query.  That check is also a
-  cache-poisoning defense, since an off-path attacker must match those
-  fields for a forged response to be accepted.
+  substituted, which {{Section 7.3 of !RFC7871}} has an Intermediate
+  Nameserver drop because its FAMILY, ADDRESS, and SOURCE PREFIX-LENGTH
+  do not match the query.  That drop is also a cache-poisoning defense,
+  as {{Section 11.2 of !RFC7871}} explains, since an off-path attacker
+  must match those fields for a forged response to be accepted.
 
   Handling of such an address is unspecified in any case.
   {{Section 11.3 of !RFC7871}} recommends that a resolver treat an
