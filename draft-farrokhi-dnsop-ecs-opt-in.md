@@ -195,6 +195,13 @@ two of these four the same way, having the resolver use the shorter of
 the incoming SOURCE PREFIX-LENGTH and its own maximum cacheable prefix
 length.
 
+Where the query includes an ECS option whose FAMILY is neither 1 nor 2,
+the effective prefix length for that query is 0.
+{{Section 6 of !RFC7871}} defines the address format only for FAMILY 1
+and FAMILY 2, so the resolver has no address to take from that option.
+Using the source address it observed instead would produce the anomaly
+described above.
+
 A resolver SHOULD NOT forward an unroutable address supplied by a client,
 one of the special-purpose addresses registered by {{?RFC6890}}, or a
 routable address the query source is known not to serve, none of which
