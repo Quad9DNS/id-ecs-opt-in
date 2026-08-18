@@ -5,7 +5,7 @@
 Network Working Group                                        B. Farrokhi
 Internet-Draft                                                   J. Todd
 Intended status: Experimental                                      Quad9
-Expires: 15 February 2027                                 14 August 2026
+Expires: 19 February 2027                                 18 August 2026
 
 
              Client Opt-In Signaling for EDNS Client Subnet
@@ -45,7 +45,7 @@ Status of This Memo
    time.  It is inappropriate to use Internet-Drafts as reference
    material or to cite them other than as "work in progress."
 
-   This Internet-Draft will expire on 15 February 2027.
+   This Internet-Draft will expire on 19 February 2027.
 
 Copyright Notice
 
@@ -245,13 +245,24 @@ Table of Contents
    of the incoming SOURCE PREFIX-LENGTH and its own maximum cacheable
    prefix length.
 
+   Where the query includes an ECS option whose FAMILY is neither 1 nor
+   2, the effective prefix length for that query is 0.  Section 6 of
+   [RFC7871] defines the address format only for FAMILY 1 and FAMILY 2,
+   so the resolver has no address to take from that option.  Using the
+   source address it observed instead would produce the anomaly
+   described above.
+
    A resolver SHOULD NOT forward an unroutable address supplied by a
-   client, one of the special-purpose addresses registered by [RFC6890],
-   or a routable address the query source is known not to serve, none of
-   which Section 11.3 of [RFC7871] recommends forwarding.  A client
-   behind a NAT that does not know it is behind one supplies such an
-   address.  Where the resolver does not forward the supplied address,
-   the effective prefix length for that query is 0.
+   client, such as one from the special-purpose blocks [RFC6890]
+   defines, or a routable address the query source is known not to
+   serve.  Section 11.3 of [RFC7871] recommends treating an unroutable
+   address as equivalent to the resolver's own identity, and ignoring
+   and never forwarding an address the query source is known not to
+   serve.  This document has the resolver forward nothing in either
+   case, which is documented under Section 5.  A client behind a NAT
+   that does not know it is behind one supplies an unroutable address.
+   Where the resolver does not forward the supplied address, the
+   effective prefix length for that query is 0.
 
    A resolver MAY decline to forward a client's address information for
    any query, a choice Section 5 of [RFC7871] leaves with the resolver.
@@ -438,7 +449,7 @@ Table of Contents
 
 5.  Deviations from RFC 7871
 
-   A resolver implementing this document differs from [RFC7871] in three
+   A resolver implementing this document differs from [RFC7871] in four
    places.
 
    1.  It answers a query whose ECS information it does not use, where
@@ -455,6 +466,11 @@ Table of Contents
    3.  It reads the condition that scopes the response requirements of
        Section 7.2.2 of [RFC7871] per query.  Section 3.4 quotes that
        condition and explains what follows from the reading.
+
+   4.  It forwards nothing when it receives an unroutable address from a
+       client, where Section 11.3 of [RFC7871] recommends treating that
+       address as the resolver's own identity.  This behavior is
+       documented under Section 3.3.
 
    Whether these warrant an Updates relationship with [RFC7871] is
    recorded in Appendix B.
