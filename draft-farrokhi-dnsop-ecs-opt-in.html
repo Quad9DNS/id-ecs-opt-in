@@ -2088,11 +2088,11 @@ to substitute the source address it observed.  A resolver acting on it
 must either echo the sentinel, which <span><a href="https://rfc-editor.org/rfc/rfc7871#section-7.5" class="relref">Section 7.5</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span> warns
 yields a response that appears tailored for the network named in the
 query when it is tailored for another, or echo the address it
-substituted and fail the check in <span><a href="https://rfc-editor.org/rfc/rfc7871#section-11.2" class="relref">Section 11.2</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span>, which
-has a client discard a response whose FAMILY, ADDRESS, and SOURCE
-PREFIX-LENGTH do not match its query.  That check is also a
-cache-poisoning defense, since an off-path attacker must match those
-fields for a forged response to be accepted.<a href="#appendix-A-3.1.1" class="pilcrow">¶</a></p>
+substituted, which <span><a href="https://rfc-editor.org/rfc/rfc7871#section-7.3" class="relref">Section 7.3</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span> has an Intermediate
+Nameserver drop because its FAMILY, ADDRESS, and SOURCE PREFIX-LENGTH
+do not match the query.  That drop is also a cache-poisoning defense,
+as <span><a href="https://rfc-editor.org/rfc/rfc7871#section-11.2" class="relref">Section 11.2</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span> explains, since an off-path attacker
+must match those fields for a forged response to be accepted.<a href="#appendix-A-3.1.1" class="pilcrow">¶</a></p>
 <p id="appendix-A-3.1.2">
 Handling of such an address is unspecified in any case.
 <span><a href="https://rfc-editor.org/rfc/rfc7871#section-11.3" class="relref">Section 11.3</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span> recommends that a resolver treat an
