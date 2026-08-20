@@ -1,0 +1,2236 @@
+<!DOCTYPE html>
+<html lang="en" class="Internet-Draft">
+<head>
+<meta charset="utf-8">
+<meta content="Common,Latin" name="scripts">
+<meta content="initial-scale=1.0" name="viewport">
+<title>Client Opt-In Signaling for EDNS Client Subnet</title>
+<meta content="Babak Farrokhi" name="author">
+<meta content="John Todd" name="author">
+<meta content="
+       EDNS Client Subnet (ECS) lets a recursive resolver send part of a
+client's network address to authoritative servers, which tailor their
+answers to it.  A resolver's configuration decides whether it does so, for
+every client that sends no ECS option of its own.  RFC 7871 lets a client
+opt out.  Asking instead for a shorter prefix requires the client to
+supply the address those bits are taken from, which a client behind a NAT
+or a VPN does not know. 
+       This document defines an opt-in.  A client includes an EDNS(0) option in a
+query to ask the resolver to forward its address information, and can use
+that option to limit how many address bits the resolver forwards.  A
+resolver implementing this document forwards nothing for a client that
+does not send the option, and one that does not implement it ignores the
+option.  One resolver address can then serve clients that want tailored
+answers and those that want their addresses withheld. 
+    " name="description">
+<meta content="xml2rfc 3.34.0" name="generator">
+<meta content="DNS" name="keyword">
+<meta content="EDNS" name="keyword">
+<meta content="ECS" name="keyword">
+<meta content="EDNS Client Subnet" name="keyword">
+<meta content="privacy" name="keyword">
+<meta content="opt-in" name="keyword">
+<meta content="draft-farrokhi-dnsop-ecs-opt-in-latest" name="ietf.draft">
+<!-- Generator version information:
+  xml2rfc 3.34.0
+    Python 3.14.7
+    ConfigArgParse 1.7.5
+    google-i18n-address 3.1.1
+    intervaltree 3.2.1
+    Jinja2 3.1.6
+    lxml 6.1.1
+    natsort 8.4.0
+    platformdirs 4.11.3
+    pycountry 24.6.1
+    PyYAML 6.0.3
+    requests 2.33.1
+    wcwidth 0.8.2
+-->
+<link href="draft-farrokhi-dnsop-ecs-opt-in.xml" rel="alternate" type="application/rfc+xml">
+<link href="#copyright" rel="license">
+<style type="text/css">/*
+
+  NOTE: Changes at the bottom of this file overrides some earlier settings.
+
+  Once the style has stabilized and has been adopted as an official RFC style,
+  this can be consolidated so that style settings occur only in one place, but
+  for now the contents of this file consists first of the initial CSS work as
+  provided to the RFC Formatter (xml2rfc) work, followed by itemized and
+  commented changes found necessary during the development of the v3
+  formatters.
+
+*/
+
+/* fonts */
+@import url('https://static.ietf.org/fonts/noto-sans/import.css'); /* Sans-serif */
+@import url('https://static.ietf.org/fonts/noto-serif/import.css'); /* Serif (print) */
+@import url('https://static.ietf.org/fonts/roboto-mono/import.css'); /* Monospace */
+
+:root {
+  --font-sans: 'Noto Sans', Arial, Helvetica, sans-serif;
+  --font-serif: 'Noto Serif', 'Times', 'Times New Roman', serif;
+  --font-mono: 'Roboto Mono', Courier, 'Courier New', monospace;
+}
+
+@viewport {
+  zoom: 1.0;
+}
+@-ms-viewport {
+  width: extend-to-zoom;
+  zoom: 1.0;
+}
+/* general and mobile first */
+html {
+}
+body {
+  max-width: 90%;
+  margin: 1.5em auto;
+  color: #222;
+  background-color: #fff;
+  font-size: 14px;
+  font-family: var(--font-sans);
+  line-height: 1.6;
+  scroll-behavior: smooth;
+  overflow-wrap: break-word;
+}
+.ears {
+  display: none;
+}
+
+/* headings */
+#title, h1, h2, h3, h4, h5, h6 {
+  margin: 1em 0 0.5em;
+  font-weight: bold;
+  line-height: 1.3;
+}
+#title {
+  clear: both;
+  border-bottom: 1px solid #ddd;
+  margin: 0 0 0.5em 0;
+  padding: 1em 0 0.5em;
+}
+.author {
+  padding-bottom: 4px;
+}
+h1 {
+  font-size: 26px;
+  margin: 1em 0;
+}
+h2 {
+  font-size: 22px;
+  margin-top: -20px;  /* provide offset for in-page anchors */
+  padding-top: 33px;
+}
+h3 {
+  font-size: 18px;
+  margin-top: -36px;  /* provide offset for in-page anchors */
+  padding-top: 42px;
+}
+h4 {
+  font-size: 16px;
+  margin-top: -36px;  /* provide offset for in-page anchors */
+  padding-top: 42px;
+}
+h5, h6 {
+  font-size: 14px;
+}
+#n-copyright-notice {
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 1em;
+  margin-bottom: 1em;
+}
+/* general structure */
+p {
+  padding: 0;
+  margin: 0 0 1em 0;
+  text-align: left;
+}
+div, span {
+  position: relative;
+}
+div {
+  margin: 0;
+}
+.alignRight.art-text {
+  background-color: #f9f9f9;
+  border: 1px solid #eee;
+  border-radius: 3px;
+  padding: 1em 1em 0;
+  margin-bottom: 1.5em;
+}
+.alignRight.art-text pre {
+  padding: 0;
+}
+.alignRight {
+  margin: 1em 0;
+}
+.alignRight > *:first-child {
+  border: none;
+  margin: 0;
+  float: right;
+  clear: both;
+}
+.alignRight > *:nth-child(2) {
+  clear: both;
+  display: block;
+  border: none;
+}
+svg {
+  display: block;
+}
+@media print {
+  svg {
+    max-height: 850px;
+    max-width: 660px;
+  }
+}
+svg[font-family~="serif" i], svg [font-family~="serif" i] {
+  font-family: var(--font-serif);
+}
+svg[font-family~="sans-serif" i], svg [font-family~="sans-serif" i] {
+  font-family: var(--font-sans);
+}
+svg[font-family~="monospace" i], svg [font-family~="monospace" i] {
+  font-family: var(--font-mono);
+}
+.alignCenter.art-text {
+  background-color: #f9f9f9;
+  border: 1px solid #eee;
+  border-radius: 3px;
+  padding: 1em 1em 0;
+  margin-bottom: 1.5em;
+}
+.alignCenter.art-text pre {
+  padding: 0;
+}
+.alignCenter {
+  margin: 1em 0;
+}
+.alignCenter > *:first-child {
+  display: table;
+  border: none;
+  margin: 0 auto;
+}
+
+/* lists */
+ol, ul {
+  padding: 0;
+  margin: 0 0 1em 2em;
+}
+ol ol, ul ul, ol ul, ul ol {
+  margin-left: 1em;
+}
+li {
+  margin: 0 0 0.25em 0;
+}
+.ulCompact li {
+  margin: 0;
+}
+ul.empty, .ulEmpty {
+  list-style-type: none;
+}
+ul.empty li, .ulEmpty li {
+  margin-top: 0.5em;
+}
+ul.ulBare, li.ulBare {
+  margin-left: 0em !important;
+}
+ul.compact, .ulCompact,
+ol.compact, .olCompact {
+  line-height: 100%;
+  margin: 0 0 0 2em;
+}
+
+/* definition lists */
+dl {
+}
+dl > dt {
+  float: left;
+  margin-right: 1em;
+}
+/* 
+dl.nohang > dt {
+  float: none;
+}
+*/
+dl > dd {
+  margin-bottom: .8em;
+  min-height: 1.3em;
+}
+dl.compact > dd, .dlCompact > dd {
+  margin-bottom: 0em;
+}
+dl > dd > dl {
+  margin-top: 0.5em;
+  margin-bottom: 0em;
+}
+
+/* links */
+a {
+  text-decoration: none;
+}
+a[href] {
+  color: #22e; /* Arlen: WCAG 2019 */
+}
+a[href]:hover {
+  background-color: #f2f2f2;
+}
+figcaption a[href],
+a[href].selfRef {
+  color: #222;
+}
+/* XXX probably not this:
+a.selfRef:hover {
+  background-color: transparent;
+  cursor: default;
+} */
+
+/* Figures */
+tt, code, pre {
+  background-color: #f9f9f9;
+  font-family: var(--font-mono);
+}
+pre {
+  border: 1px solid #eee;
+  margin: 0;
+  padding: 1em;
+}
+img {
+  max-width: 100%;
+}
+figure {
+  margin: 0;
+}
+figure blockquote {
+  margin: 0.8em 0.4em 0.4em;
+}
+figcaption {
+  font-style: italic;
+  margin: 0 0 1em 0;
+}
+@media screen {
+  pre {
+    overflow-x: auto;
+    max-width: 100%;
+    max-width: calc(100% - 22px);
+  }
+}
+
+/* aside, blockquote */
+aside, blockquote {
+  margin-left: 0;
+  padding: 1.2em 2em;
+}
+blockquote {
+  background-color: #f9f9f9;
+  color: #111; /* Arlen: WCAG 2019 */
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  margin: 1em 0;
+}
+blockquote > *:last-child {
+  margin-bottom: 0;
+}
+cite {
+  display: block;
+  text-align: right;
+  font-style: italic;
+}
+.xref {
+  overflow-wrap: normal;
+}
+
+/* tables */
+table {
+  width: 100%;
+  margin: 0 0 1em;
+  border-collapse: collapse;
+  border: 1px solid #eee;
+}
+th, td {
+  text-align: left;
+  vertical-align: top;
+  padding: 0.5em 0.75em;
+}
+th {
+  text-align: left;
+  background-color: #e9e9e9;
+}
+tr:nth-child(2n+1) > td {
+  background-color: #f5f5f5;
+}
+table caption {
+  font-style: italic;
+  margin: 0;
+  padding: 0;
+  text-align: left;
+}
+table p {
+  /* XXX to avoid bottom margin on table row signifiers. If paragraphs should
+     be allowed within tables more generally, it would be far better to select on a class. */
+  margin: 0;
+}
+
+/* pilcrow */
+a.pilcrow {
+  color: #666; /* Arlen: AHDJ 2019 */
+  text-decoration: none;
+  visibility: hidden;
+  user-select: none;
+  -ms-user-select: none;
+  -o-user-select:none;
+  -moz-user-select: none;
+  -khtml-user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+@media screen {
+  aside:hover > a.pilcrow,
+  p:hover > a.pilcrow,
+  blockquote:hover > a.pilcrow,
+  div:hover > a.pilcrow,
+  li:hover > a.pilcrow,
+  pre:hover > a.pilcrow {
+    visibility: visible;
+  }
+  a.pilcrow:hover {
+    background-color: transparent;
+  }
+}
+
+/* misc */
+hr {
+  border: 0;
+  border-top: 1px solid #eee;
+}
+.bcp14 {
+  font-variant: small-caps;
+}
+
+.role {
+  font-variant: all-small-caps;
+}
+
+/* info block */
+#identifiers {
+  margin: 0;
+  font-size: 0.9em;
+}
+#identifiers dt {
+  width: 3em;
+  clear: left;
+}
+#identifiers dd {
+  float: left;
+  margin-bottom: 0;
+}
+/* Fix PDF info block run off issue */
+@media print {
+  #identifiers dd {
+    max-width: 100%;
+  }
+}
+#identifiers .authors .author {
+  display: inline-block;
+  margin-right: 1.5em;
+}
+#identifiers .authors .org {
+  font-style: italic;
+}
+
+/* The prepared/rendered info at the very bottom of the page */
+.docInfo {
+  color: #666; /* Arlen: WCAG 2019 */
+  font-size: 0.9em;
+  font-style: italic;
+  margin-top: 2em;
+}
+.docInfo .prepared {
+  float: left;
+}
+.docInfo .prepared {
+  float: right;
+}
+
+/* table of contents */
+#toc  {
+  padding: 0.75em 0 2em 0;
+  margin-bottom: 1em;
+}
+nav.toc ul {
+  margin: 0 0.5em 0 0;
+  padding: 0;
+  list-style: none;
+}
+nav.toc li {
+  line-height: 1.3em;
+  margin: 0.75em 0;
+  padding-left: 1.2em;
+  text-indent: -1.2em;
+}
+/* references */
+.references dt {
+  text-align: right;
+  font-weight: bold;
+  min-width: 7em;
+}
+.references dd {
+  margin-left: 8em;
+  overflow: auto;
+}
+
+.refInstance {
+  margin-bottom: 1.25em;
+}
+
+.refSubseries {
+  margin-bottom: 1.25em;
+}
+
+.references .ascii {
+  margin-bottom: 0.25em;
+}
+
+/* index */
+.index ul {
+  margin: 0 0 0 1em;
+  padding: 0;
+  list-style: none;
+}
+.index ul ul {
+  margin: 0;
+}
+.index li {
+  margin: 0;
+  text-indent: -2em;
+  padding-left: 2em;
+  padding-bottom: 5px;
+}
+.indexIndex {
+  margin: 0.5em 0 1em;
+}
+.index a {
+  font-weight: 700;
+}
+/* make the index two-column on all but the smallest screens */
+@media (min-width: 600px) {
+  .index ul {
+    -moz-column-count: 2;
+    -moz-column-gap: 20px;
+  }
+  .index ul ul {
+    -moz-column-count: 1;
+    -moz-column-gap: 0;
+  }
+}
+
+/* authors */
+address.vcard {
+  font-style: normal;
+  margin: 1em 0;
+}
+
+address.vcard .nameRole {
+  font-weight: 700;
+  margin-left: 0;
+}
+address.vcard .label {
+  font-family: var(--font-sans);
+  margin: 0.5em 0;
+}
+address.vcard .type {
+  display: none;
+}
+.alternative-contact {
+  margin: 1.5em 0 1em;
+}
+hr.addr {
+  border-top: 1px dashed;
+  margin: 0;
+  color: #ddd;
+  max-width: calc(100% - 16px);
+}
+
+/* temporary notes */
+.rfcEditorRemove::before {
+  position: absolute;
+  top: 0.2em;
+  right: 0.2em;
+  padding: 0.2em;
+  content: "The RFC Editor will remove this note";
+  color: #9e2a00; /* Arlen: WCAG 2019 */
+  background-color: #ffd; /* Arlen: WCAG 2019 */
+}
+.rfcEditorRemove {
+  position: relative;
+  padding-top: 1.8em;
+  background-color: #ffd; /* Arlen: WCAG 2019 */
+  border-radius: 3px;
+}
+.cref {
+  background-color: #ffd; /* Arlen: WCAG 2019 */
+  padding: 2px 4px;
+}
+.crefSource {
+  font-style: italic;
+}
+/* alternative layout for smaller screens */
+@media screen and (max-width: 1023px) {
+  body {
+    padding-top: 2em;
+  }
+  #title {
+    padding: 1em 0;
+  }
+  h1 {
+    font-size: 24px;
+  }
+  h2 {
+    font-size: 20px;
+    margin-top: -18px;  /* provide offset for in-page anchors */
+    padding-top: 38px;
+  }
+  #identifiers dd {
+    max-width: 60%;
+  }
+  #toc {
+    position: fixed;
+    z-index: 2;
+    top: 0;
+    right: 0;
+    padding: 0;
+    margin: 0;
+    background-color: inherit;
+    border-bottom: 1px solid #ccc;
+  }
+  #toc h2 {
+    margin: -1px 0 0 0;
+    padding: 4px 0 4px 6px;
+    padding-right: 1em;
+    min-width: 190px;
+    font-size: 1.1em;
+    text-align: right;
+    background-color: #444;
+    color: white;
+    cursor: pointer;
+  }
+  #toc h2::before { /* css hamburger */
+    float: right;
+    position: relative;
+    width: 1em;
+    height: 1px;
+    left: -164px;
+    margin: 6px 0 0 0;
+    background: white none repeat scroll 0 0;
+    box-shadow: 0 4px 0 0 white, 0 8px 0 0 white;
+    content: "";
+  }
+  #toc nav {
+    display: none;
+    padding: 0.5em 1em 1em;
+    overflow: auto;
+    height: calc(100vh - 48px);
+    border-left: 1px solid #ddd;
+  }
+}
+
+/* alternative layout for wide screens */
+@media screen and (min-width: 1024px) {
+  body {
+    max-width: 724px;
+    margin: 42px auto;
+    padding-left: 1.5em;
+    padding-right: 29em;
+  }
+  #toc {
+    position: fixed;
+    top: 42px;
+    right: 42px;
+    width: 25%;
+    margin: 0;
+    padding: 0 1em;
+    z-index: 1;
+  }
+  #toc h2 {
+    border-top: none;
+    border-bottom: 1px solid #ddd;
+    font-size: 1em;
+    font-weight: normal;
+    margin: 0;
+    padding: 0.25em 1em 1em 0;
+  }
+  #toc nav {
+    display: block;
+    height: calc(90vh - 84px);
+    bottom: 0;
+    padding: 0.5em 0 0;
+    overflow: auto;
+  }
+  img { /* future proofing */
+    max-width: 100%;
+    height: auto;
+  }
+}
+
+/* pagination */
+@media print {
+  body {
+    width: 100%;
+  }
+  p {
+    orphans: 3;
+    widows: 3;
+  }
+  #n-copyright-notice {
+    border-bottom: none;
+  }
+  #toc, #n-introduction {
+    page-break-before: always;
+  }
+  #toc {
+    border-top: none;
+    padding-top: 0;
+  }
+  figure, pre {
+    page-break-inside: avoid;
+  }
+  figure {
+    overflow: scroll;
+  }
+  .breakable pre {
+    break-inside: auto;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    page-break-after: avoid;
+  }
+  h2+*, h3+*, h4+*, h5+*, h6+* {
+    page-break-before: avoid;
+  }
+  pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-size: 10pt;
+  }
+  table {
+    border: 1px solid #ddd;
+  }
+  td {
+    border-top: 1px solid #ddd;
+  }
+}
+
+/* This is commented out here, as the string-set: doesn't
+   pass W3C validation currently */
+/*
+.ears thead .left {
+  string-set: ears-top-left content();
+}
+
+.ears thead .center {
+  string-set: ears-top-center content();
+}
+
+.ears thead .right {
+  string-set: ears-top-right content();
+}
+
+.ears tfoot .left {
+  string-set: ears-bottom-left content();
+}
+
+.ears tfoot .center {
+  string-set: ears-bottom-center content();
+}
+
+.ears tfoot .right {
+  string-set: ears-bottom-right content();
+}
+*/
+
+@page :first {
+  padding-top: 0;
+  @top-left {
+    content: normal;
+    border: none;
+  }
+  @top-center {
+    content: normal;
+    border: none;
+  }
+  @top-right {
+    content: normal;
+    border: none;
+  }
+}
+
+@page {
+  size: A4;
+  margin-bottom: 45mm;
+  padding-top: 20px;
+  /* The following is commented out here, but set appropriately by in code, as
+     the content depends on the document */
+  /*
+  @top-left {
+    content: 'Internet-Draft';
+    vertical-align: bottom;
+    border-bottom: solid 1px #ccc;
+  }
+  @top-left {
+    content: string(ears-top-left);
+    vertical-align: bottom;
+    border-bottom: solid 1px #ccc;
+  }
+  @top-center {
+    content: string(ears-top-center);
+    vertical-align: bottom;
+    border-bottom: solid 1px #ccc;
+  }
+  @top-right {
+    content: string(ears-top-right);
+    vertical-align: bottom;
+    border-bottom: solid 1px #ccc;
+  }
+  @bottom-left {
+    content: string(ears-bottom-left);
+    vertical-align: top;
+    border-top: solid 1px #ccc;
+  }
+  @bottom-center {
+    content: string(ears-bottom-center);
+    vertical-align: top;
+    border-top: solid 1px #ccc;
+  }
+  @bottom-right {
+      content: '[Page ' counter(page) ']';
+      vertical-align: top;
+      border-top: solid 1px #ccc;
+  }
+  */
+
+}
+
+/* Changes introduced to fix issues found during implementation */
+/* Make sure links are clickable even if overlapped by following H* */
+a {
+  z-index: 2;
+}
+/* Separate body from document info even without intervening H1 */
+section {
+  clear: both;
+}
+
+
+/* Top align author divs, to avoid names without organization dropping level with org names */
+.author {
+  vertical-align: top;
+}
+
+/* Leave room in document info to show Internet-Draft on one line */
+#identifiers dt {
+  width: 8em;
+}
+
+/* Don't waste quite as much whitespace between label and value in doc info */
+#identifiers dd {
+  margin-left: 1em;
+}
+
+/* Give floating toc a background color (needed when it's a div inside section */
+#toc {
+  background-color: white;
+}
+
+/* Make the collapsed ToC header render white on gray also when it's a link */
+@media screen and (max-width: 1023px) {
+  #toc h2 a,
+  #toc h2 a:link,
+  #toc h2 a:focus,
+  #toc h2 a:hover,
+  #toc a.toplink,
+  #toc a.toplink:hover {
+    color: white;
+    background-color: #444;
+    text-decoration: none;
+  }
+}
+
+/* Give the bottom of the ToC some whitespace */
+@media screen and (min-width: 1024px) {
+  #toc {
+    padding: 0 0 1em 1em;
+  }
+}
+
+/* Style section numbers with more space between number and title */
+.section-number {
+  padding-right: 0.5em;
+}
+
+/* prevent monospace from becoming overly large */
+tt, code, pre {
+  font-size: 95%;
+}
+
+/* Fix the height/width aspect for ascii art*/
+.sourcecode pre,
+.art-text pre {
+  line-height: 1.12;
+}
+
+
+/* Add styling for a link in the ToC that points to the top of the document */
+a.toplink {
+  float: right;
+  margin-right: 0.5em;
+}
+
+/* Fix the dl styling to match the RFC 7992 attributes */
+dl > dt,
+dl.dlParallel > dt {
+  float: left;
+  margin-right: 1em;
+}
+dl.dlNewline > dt {
+  float: none;
+}
+
+/* Provide styling for table cell text alignment */
+table td.text-left,
+table th.text-left {
+  text-align: left;
+}
+table td.text-center,
+table th.text-center {
+  text-align: center;
+}
+table td.text-right,
+table th.text-right {
+  text-align: right;
+}
+
+/* Make the alternative author contact information look less like just another
+   author, and group it closer with the primary author contact information */
+.alternative-contact {
+  margin: 0.5em 0 0.25em 0;
+}
+address .non-ascii {
+  margin: 0 0 0 2em;
+}
+
+/* With it being possible to set tables with alignment
+  left, center, and right, { width: 100%; } does not make sense */
+table {
+  width: auto;
+}
+
+/* Avoid reference text that sits in a block with very wide left margin,
+   because of a long floating dt label.*/
+.references dd {
+  overflow: visible;
+}
+
+/* Control caption placement */
+caption {
+  caption-side: bottom;
+}
+
+/* Limit the width of the author address vcard, so names in right-to-left
+   script don't end up on the other side of the page. */
+
+address.vcard {
+  max-width: 30em;
+  margin-right: auto;
+}
+
+/* For address alignment dependent on LTR or RTL scripts */
+address div.left {
+  text-align: left;
+}
+address div.right {
+  text-align: right;
+}
+
+/* Provide table alignment support.  We can't use the alignX classes above
+   since they do unwanted things with caption and other styling. */
+table.right {
+ margin-left: auto;
+ margin-right: 0;
+}
+table.center {
+ margin-left: auto;
+ margin-right: auto;
+}
+table.left {
+ margin-left: 0;
+ margin-right: auto;
+}
+
+/* Give the table caption label the same styling as the figcaption */
+caption a[href] {
+  color: #222;
+}
+
+@media print {
+  .toplink {
+    display: none;
+  }
+
+  /* avoid overwriting the top border line with the ToC header */
+  #toc {
+    padding-top: 1px;
+  }
+
+  /* Avoid page breaks inside dl and author address entries */
+  .vcard {
+    page-break-inside: avoid;
+  }
+
+}
+/* Tweak the bcp14 keyword presentation */
+.bcp14 {
+  font-variant: small-caps;
+  font-weight: bold;
+  font-size: 0.9em;
+}
+/* Tweak the invisible space above H* in order not to overlay links in text above */
+ h2 {
+  margin-top: -18px;  /* provide offset for in-page anchors */
+  padding-top: 31px;
+ }
+ h3 {
+  margin-top: -18px;  /* provide offset for in-page anchors */
+  padding-top: 24px;
+ }
+ h4 {
+  margin-top: -18px;  /* provide offset for in-page anchors */
+  padding-top: 24px;
+ }
+/* Float artwork pilcrow to the right */
+@media screen {
+  .artwork a.pilcrow {
+    display: block;
+    line-height: 0.7;
+    margin-top: 0.15em;
+  }
+}
+/* Make pilcrows on dd visible */
+@media screen {
+  dd:hover > a.pilcrow {
+    visibility: visible;
+  }
+}
+/* Make the placement of figcaption match that of a table's caption
+   by removing the figure's added bottom margin */
+.alignLeft.art-text,
+.alignCenter.art-text,
+.alignRight.art-text {
+   margin-bottom: 0;
+}
+.alignLeft,
+.alignCenter,
+.alignRight {
+  margin: 1em 0 0 0;
+}
+/* In print, the pilcrow won't show on hover, so prevent it from taking up space,
+   possibly even requiring a new line */
+@media print {
+  a.pilcrow {
+    display: none;
+  }
+}
+/* Styling for the external metadata */
+div#external-metadata {
+  background-color: #eee;
+  padding: 0.5em;
+  margin-bottom: 0.5em;
+  display: none;
+}
+div#internal-metadata {
+  padding: 0.5em;                       /* to match the external-metadata padding */
+}
+/* Styling for title RFC Number */
+h1#rfcnum {
+  clear: both;
+  margin: 0 0 -1em;
+  padding: 1em 0 0 0;
+}
+/* Make .olPercent look the same as <ol><li> */
+dl.olPercent > dd {
+  margin-bottom: 0.25em;
+  min-height: initial;
+}
+/* Give aside some styling to set it apart */
+aside {
+  border-left: 1px solid #ddd;
+  margin: 1em 0 1em 2em;
+  padding: 0.2em 2em;
+}
+aside > dl,
+aside > ol,
+aside > ul,
+aside > table,
+aside > p {
+  margin-bottom: 0.5em;
+}
+/* Additional page break settings */
+@media print {
+  figcaption, table caption {
+    page-break-before: avoid;
+  }
+}
+/* Font size adjustments for print */
+@media print {
+  body  { font-size: 10pt;      line-height: normal; max-width: 96%; }
+  h1    { font-size: 1.72em;    padding-top: 1.5em; } /* 1*1.2*1.2*1.2 */
+  h2    { font-size: 1.44em;    padding-top: 1.5em; } /* 1*1.2*1.2 */
+  h3    { font-size: 1.2em;     padding-top: 1.5em; } /* 1*1.2 */
+  h4    { font-size: 1em;       padding-top: 1.5em; }
+  h5, h6 { font-size: 1em;      margin: initial; padding: 0.5em 0 0.3em; }
+}
+/* Sourcecode margin in print, when there's no pilcrow */
+@media print {
+  .artwork,
+  .artwork > pre,
+  .sourcecode {
+    margin-bottom: 1em;
+  }
+}
+/* Avoid narrow tables forcing too narrow table captions, which may render badly */
+table {
+  min-width: 20em;
+}
+/* ol type a */
+ol.type-a { list-style-type: lower-alpha; }
+ol.type-A { list-style-type: upper-alpha; }
+ol.type-i { list-style-type: lower-roman; }
+ol.type-I { list-style-type: upper-roman; }
+/* Apply the print table and row borders in general, on request from the RPC,
+and increase the contrast between border and odd row background slightly */
+table {
+  border: 1px solid #ddd;
+}
+td {
+  border-top: 1px solid #ddd;
+}
+tr {
+  break-inside: avoid;
+}
+tr:nth-child(2n+1) > td {
+  background-color: #f8f8f8;
+}
+/* Use style rules to govern display of the TOC. */
+@media screen and (max-width: 1023px) {
+  #toc nav { display: none; }
+  #toc.active nav { display: block; }
+}
+/* Add support for keepWithNext */
+.keepWithNext {
+  break-after: avoid-page;
+  break-after: avoid-page;
+}
+/* Add support for keepWithPrevious */
+.keepWithPrevious {
+  break-before: avoid-page;
+}
+/* Change the approach to avoiding breaks inside artwork etc. */
+figure, pre, table, .artwork, .sourcecode  {
+  break-before: auto;
+  break-after: auto;
+}
+/* Avoid breaks between <dt> and <dd> */
+dl {
+  break-before: auto;
+  break-inside: auto;
+}
+dt {
+  break-before: auto;
+  break-after: avoid-page;
+}
+dd {
+  break-before: avoid-page;
+  break-after: auto;
+  orphans: 3;
+  widows: 3
+}
+span.break, dd.break {
+  margin-bottom: 0;
+  min-height: 0;
+  break-before: auto;
+  break-inside: auto;
+  break-after: auto;
+}
+/* Undo break-before ToC */
+@media print {
+  #toc {
+    break-before: auto;
+  }
+}
+/* Text in compact lists should not get extra bottom margin space,
+   since that would makes the list not compact */
+ul.compact p, .ulCompact p,
+ol.compact p, .olCompact p {
+ margin: 0;
+}
+/* But the list as a whole needs the extra space at the end */
+section ul.compact,
+section .ulCompact,
+section ol.compact,
+section .olCompact {
+  margin-bottom: 1em;                    /* same as p not within ul.compact etc. */
+}
+/* The tt and code background above interferes with for instance table cell
+   backgrounds.  Changed to something a bit more selective. */
+tt, code {
+  background-color: transparent;
+}
+p tt, p code, li tt, li code, dt tt, dt code {
+  background-color: #f8f8f8;
+}
+/* Tweak the pre margin -- 0px doesn't come out well */
+pre {
+   margin-top: 0.5px;
+}
+/* Tweak the compact list text */
+ul.compact, .ulCompact,
+ol.compact, .olCompact,
+dl.compact, .dlCompact {
+  line-height: normal;
+}
+/* Don't add top margin for nested lists */
+li > ul, li > ol, li > dl,
+dd > ul, dd > ol, dd > dl,
+dl > dd > dl {
+  margin-top: initial;
+}
+/* Elements that should not be rendered on the same line as a <dt> */
+/* This should match the element list in writer.text.TextWriter.render_dl() */
+dd > div.artwork:first-child,
+dd > aside:first-child,
+dd > blockquote:first-child,
+dd > figure:first-child,
+dd > ol:first-child,
+dd > div.sourcecode:first-child,
+dd > table:first-child,
+dd > ul:first-child {
+  clear: left;
+}
+/* fix for weird browser behaviour when <dd/> is empty */
+dt+dd:empty::before{
+  content: "\00a0";
+}
+/* Make paragraph spacing inside <li> smaller than in body text, to fit better within the list */
+li > p {
+  margin-bottom: 0.5em
+}
+/* Don't let p margin spill out from inside list items */
+li > p:last-of-type:only-child {
+  margin-bottom: 0;
+}
+</style>
+
+</head>
+<body class="xml2rfc">
+<table class="ears">
+<thead><tr>
+<td class="left">Internet-Draft</td>
+<td class="center">ECS Client Opt-In</td>
+<td class="right">August 2026</td>
+</tr></thead>
+<tfoot><tr>
+<td class="left">Farrokhi &amp; Todd</td>
+<td class="center">Expires 21 February 2027</td>
+<td class="right">[Page]</td>
+</tr></tfoot>
+</table>
+<div id="external-metadata" class="document-information"></div>
+<div id="internal-metadata" class="document-information">
+<dl id="identifiers">
+<dt class="label-workgroup">Workgroup:</dt>
+<dd class="workgroup">Network Working Group</dd>
+<dt class="label-internet-draft">Internet-Draft:</dt>
+<dd class="internet-draft">draft-farrokhi-dnsop-ecs-opt-in-latest</dd>
+<dt class="label-published">Published:</dt>
+<dd class="published">
+<time datetime="2026-08-20" class="published">20 August 2026</time>
+    </dd>
+<dt class="label-intended-status">Intended Status:</dt>
+<dd class="intended-status">Experimental</dd>
+<dt class="label-expires">Expires:</dt>
+<dd class="expires"><time datetime="2027-02-21">21 February 2027</time></dd>
+<dt class="label-authors">Authors:</dt>
+<dd class="authors">
+<div class="author">
+      <div class="author-name">B. Farrokhi</div>
+<div class="org">Quad9</div>
+</div>
+<div class="author">
+      <div class="author-name">J. Todd</div>
+<div class="org">Quad9</div>
+</div>
+</dd>
+</dl>
+</div>
+<h1 id="title">Client Opt-In Signaling for EDNS Client Subnet</h1>
+<section id="section-abstract">
+      <h2 id="abstract"><a href="#abstract" class="selfRef">Abstract</a></h2>
+<p id="section-abstract-1">EDNS Client Subnet (ECS) lets a recursive resolver send part of a
+client's network address to authoritative servers, which tailor their
+answers to it.  A resolver's configuration decides whether it does so, for
+every client that sends no ECS option of its own.  RFC 7871 lets a client
+opt out.  Asking instead for a shorter prefix requires the client to
+supply the address those bits are taken from, which a client behind a NAT
+or a VPN does not know.<a href="#section-abstract-1" class="pilcrow">¶</a></p>
+<p id="section-abstract-2">This document defines an opt-in.  A client includes an EDNS(0) option in a
+query to ask the resolver to forward its address information, and can use
+that option to limit how many address bits the resolver forwards.  A
+resolver implementing this document forwards nothing for a client that
+does not send the option, and one that does not implement it ignores the
+option.  One resolver address can then serve clients that want tailored
+answers and those that want their addresses withheld.<a href="#section-abstract-2" class="pilcrow">¶</a></p>
+</section>
+<div id="status-of-memo">
+<section id="section-boilerplate.1">
+        <h2 id="name-status-of-this-memo">
+<a href="#name-status-of-this-memo" class="section-name selfRef">Status of This Memo</a>
+        </h2>
+<p id="section-boilerplate.1-1">
+        This Internet-Draft is submitted in full conformance with the
+        provisions of BCP 78 and BCP 79.<a href="#section-boilerplate.1-1" class="pilcrow">¶</a></p>
+<p id="section-boilerplate.1-2">
+        Internet-Drafts are working documents of the Internet Engineering Task
+        Force (IETF). Note that other groups may also distribute working
+        documents as Internet-Drafts. The list of current Internet-Drafts is
+        at <span><a href="https://datatracker.ietf.org/drafts/current/">https://datatracker.ietf.org/drafts/current/</a></span>.<a href="#section-boilerplate.1-2" class="pilcrow">¶</a></p>
+<p id="section-boilerplate.1-3">
+        Internet-Drafts are draft documents valid for a maximum of six months
+        and may be updated, replaced, or obsoleted by other documents at any
+        time. It is inappropriate to use Internet-Drafts as reference
+        material or to cite them other than as "work in progress."<a href="#section-boilerplate.1-3" class="pilcrow">¶</a></p>
+<p id="section-boilerplate.1-4">
+        This Internet-Draft will expire on 21 February 2027.<a href="#section-boilerplate.1-4" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="copyright">
+<section id="section-boilerplate.2">
+        <h2 id="name-copyright-notice">
+<a href="#name-copyright-notice" class="section-name selfRef">Copyright Notice</a>
+        </h2>
+<p id="section-boilerplate.2-1">
+            Copyright (c) 2026 IETF Trust and the persons identified as the
+            document authors. All rights reserved.<a href="#section-boilerplate.2-1" class="pilcrow">¶</a></p>
+<p id="section-boilerplate.2-2">
+            This document is subject to BCP 78 and the IETF Trust's Legal
+            Provisions Relating to IETF Documents
+            (<span><a href="https://trustee.ietf.org/license-info">https://trustee.ietf.org/license-info</a></span>) in effect on the date of
+            publication of this document. Please review these documents
+            carefully, as they describe your rights and restrictions with
+            respect to this document. Code Components extracted from this
+            document must include Revised BSD License text as described in
+            Section 4.e of the Trust Legal Provisions and are provided without
+            warranty as described in the Revised BSD License.<a href="#section-boilerplate.2-2" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="toc">
+<section id="section-toc.1">
+        <a href="#" onclick="scroll(0,0)" class="toplink">▲</a><h2 id="name-table-of-contents">
+<a href="#name-table-of-contents" class="section-name selfRef">Table of Contents</a>
+        </h2>
+<nav class="toc"><ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.1">
+            <p id="section-toc.1-1.1.1" class="keepWithNext"><a href="#section-1" class="auto internal xref">1</a>.  <a href="#name-introduction" class="internal xref">Introduction</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.1.2.1">
+                <p id="section-toc.1-1.1.2.1.1" class="keepWithNext"><a href="#section-1.1" class="auto internal xref">1.1</a>.  <a href="#name-scope" class="internal xref">Scope</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.2">
+            <p id="section-toc.1-1.2.1" class="keepWithNext"><a href="#section-2" class="auto internal xref">2</a>.  <a href="#name-conventions-and-definitions" class="internal xref">Conventions and Definitions</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.3">
+            <p id="section-toc.1-1.3.1"><a href="#section-3" class="auto internal xref">3</a>.  <a href="#name-the-ecs-opt-in-option" class="internal xref">The ECS Opt-In Option</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.3.2.1">
+                <p id="section-toc.1-1.3.2.1.1"><a href="#section-3.1" class="auto internal xref">3.1</a>.  <a href="#name-option-format" class="internal xref">Option Format</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.3.2.2">
+                <p id="section-toc.1-1.3.2.2.1"><a href="#section-3.2" class="auto internal xref">3.2</a>.  <a href="#name-client-behavior" class="internal xref">Client Behavior</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.3.2.3">
+                <p id="section-toc.1-1.3.2.3.1"><a href="#section-3.3" class="auto internal xref">3.3</a>.  <a href="#name-recursive-resolver-behavior" class="internal xref">Recursive Resolver Behavior</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.3.2.3.2.1">
+                    <p id="section-toc.1-1.3.2.3.2.1.1"><a href="#section-3.3.1" class="auto internal xref">3.3.1</a>.  <a href="#name-response" class="internal xref">Response</a></p>
+</li>
+                </ul>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.3.2.4">
+                <p id="section-toc.1-1.3.2.4.1"><a href="#section-3.4" class="auto internal xref">3.4</a>.  <a href="#name-relationship-to-the-ecs-opt" class="internal xref">Relationship to the ECS Option</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.3.2.5">
+                <p id="section-toc.1-1.3.2.5.1"><a href="#section-3.5" class="auto internal xref">3.5</a>.  <a href="#name-non-transitivity" class="internal xref">Non-Transitivity</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4">
+            <p id="section-toc.1-1.4.1"><a href="#section-4" class="auto internal xref">4</a>.  <a href="#name-caching" class="internal xref">Caching</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.5">
+            <p id="section-toc.1-1.5.1"><a href="#section-5" class="auto internal xref">5</a>.  <a href="#name-deviations-from-rfc-7871" class="internal xref">Deviations from RFC 7871</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6">
+            <p id="section-toc.1-1.6.1"><a href="#section-6" class="auto internal xref">6</a>.  <a href="#name-deployment-considerations" class="internal xref">Deployment Considerations</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7">
+            <p id="section-toc.1-1.7.1"><a href="#section-7" class="auto internal xref">7</a>.  <a href="#name-security-considerations" class="internal xref">Security Considerations</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.8">
+            <p id="section-toc.1-1.8.1"><a href="#section-8" class="auto internal xref">8</a>.  <a href="#name-privacy-considerations" class="internal xref">Privacy Considerations</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.9">
+            <p id="section-toc.1-1.9.1"><a href="#section-9" class="auto internal xref">9</a>.  <a href="#name-iana-considerations" class="internal xref">IANA Considerations</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.10">
+            <p id="section-toc.1-1.10.1"><a href="#section-10" class="auto internal xref">10</a>. <a href="#name-references" class="internal xref">References</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.10.2.1">
+                <p id="section-toc.1-1.10.2.1.1"><a href="#section-10.1" class="auto internal xref">10.1</a>.  <a href="#name-normative-references" class="internal xref">Normative References</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.10.2.2">
+                <p id="section-toc.1-1.10.2.2.1"><a href="#section-10.2" class="auto internal xref">10.2</a>.  <a href="#name-informative-references" class="internal xref">Informative References</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.11">
+            <p id="section-toc.1-1.11.1"><a href="#appendix-A" class="auto internal xref">Appendix A</a>.  <a href="#name-alternatives-considered" class="internal xref">Alternatives Considered</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.12">
+            <p id="section-toc.1-1.12.1"><a href="#appendix-B" class="auto internal xref">Appendix B</a>.  <a href="#name-open-issues" class="internal xref">Open Issues</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.13">
+            <p id="section-toc.1-1.13.1"><a href="#appendix-C" class="auto internal xref"></a><a href="#name-authors-addresses" class="internal xref">Authors' Addresses</a></p>
+</li>
+        </ul>
+</nav>
+</section>
+</div>
+<div id="introduction">
+<section id="section-1">
+      <h2 id="name-introduction">
+<a href="#section-1" class="section-number selfRef">1. </a><a href="#name-introduction" class="section-name selfRef">Introduction</a>
+      </h2>
+<p id="section-1-1">EDNS Client Subnet <span>[<a href="#RFC7871" class="cite xref">RFC7871</a>]</span> lets a recursive resolver send a prefix
+of the client's network address to authoritative servers, which use it to
+tailor their answers.<a href="#section-1-1" class="pilcrow">¶</a></p>
+<p id="section-1-2">A resolver either uses ECS or it does not, based on how it is configured.
+A client of a resolver with ECS enabled can opt out by sending an ECS
+option with a SOURCE PREFIX-LENGTH of 0, which
+<span><a href="https://rfc-editor.org/rfc/rfc7871#section-7.1.2" class="relref">Section 7.1.2</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span> obliges the recursive resolver to honor.
+That client can also ask for a shorter prefix, but
+<span><a href="https://rfc-editor.org/rfc/rfc7871#section-6" class="relref">Section 6</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span> requires the ECS option to contain the address
+those bits are taken from, and a client behind a NAT or a VPN does not
+know the address the resolver sees.  A client that sends nothing has its
+address information forwarded.<a href="#section-1-2" class="pilcrow">¶</a></p>
+<p id="section-1-3">An operator who wants to offer ECS to some clients and withhold it from
+others runs a second resolver on a second address and tells users which
+one to use.  That increases the operational burden, resource usage and
+complexity.  It also hands the privacy decision to whoever configures the
+client's resolver address, which is usually not the user whose address is
+forwarded.<a href="#section-1-3" class="pilcrow">¶</a></p>
+<p id="section-1-4">This document defines an opt-in mechanism.  A recursive resolver that
+implements it forwards a client's address information only for a query
+that includes the opt-in option, and that option can also limit how many
+address bits the resolver forwards.  The resolver reports in its response
+how many it applied.<a href="#section-1-4" class="pilcrow">¶</a></p>
+<div id="scope">
+<section id="section-1.1">
+        <h3 id="name-scope">
+<a href="#section-1.1" class="section-number selfRef">1.1. </a><a href="#name-scope" class="section-name selfRef">Scope</a>
+        </h3>
+<p id="section-1.1-1">This document defines the signal and the resolver behavior it requires.
+It does not change the ECS option and does not define any new behavior
+for authoritative servers.  A resolver implementing it treats some
+recommendations of <span>[<a href="#RFC7871" class="cite xref">RFC7871</a>]</span> differently, which <a href="#deviations" class="auto internal xref">Section 5</a> lists.<a href="#section-1.1-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="conventions-and-definitions">
+<section id="section-2">
+      <h2 id="name-conventions-and-definitions">
+<a href="#section-2" class="section-number selfRef">2. </a><a href="#name-conventions-and-definitions" class="section-name selfRef">Conventions and Definitions</a>
+      </h2>
+<p id="section-2-1">The key words "<span class="bcp14">MUST</span>", "<span class="bcp14">MUST NOT</span>", "<span class="bcp14">REQUIRED</span>", "<span class="bcp14">SHALL</span>", "<span class="bcp14">SHALL NOT</span>", "<span class="bcp14">SHOULD</span>", "<span class="bcp14">SHOULD NOT</span>", "<span class="bcp14">RECOMMENDED</span>", "<span class="bcp14">NOT RECOMMENDED</span>",
+"<span class="bcp14">MAY</span>", and "<span class="bcp14">OPTIONAL</span>" in this document are to be interpreted as
+described in BCP 14 <span>[<a href="#RFC2119" class="cite xref">RFC2119</a>]</span> <span>[<a href="#RFC8174" class="cite xref">RFC8174</a>]</span> when, and only when, they
+appear in all capitals, as shown here.<a href="#section-2-1" class="pilcrow">¶</a></p>
+<p id="section-2-2">DNS terminology follows BCP 219 <span>[<a href="#RFC9499" class="cite xref">RFC9499</a>]</span>.  ECS terminology
+follows <span>[<a href="#RFC7871" class="cite xref">RFC7871</a>]</span> and is not redefined here.  This includes SOURCE
+PREFIX-LENGTH, SCOPE PREFIX-LENGTH, Tailored Response, Intermediate
+Nameserver, and Forwarding Resolver, none of which <span>[<a href="#RFC9499" class="cite xref">RFC9499</a>]</span> defines.<a href="#section-2-2" class="pilcrow">¶</a></p>
+<p id="section-2-3">The term "signaling client" means a client whose query included the option
+defined in this document and for which the effective prefix length
+defined in <a href="#resolver-behavior" class="auto internal xref">Section 3.3</a> is nonzero.<a href="#section-2-3" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="the-ecs-opt-in-option">
+<section id="section-3">
+      <h2 id="name-the-ecs-opt-in-option">
+<a href="#section-3" class="section-number selfRef">3. </a><a href="#name-the-ecs-opt-in-option" class="section-name selfRef">The ECS Opt-In Option</a>
+      </h2>
+<div id="option-format">
+<section id="section-3.1">
+        <h3 id="name-option-format">
+<a href="#section-3.1" class="section-number selfRef">3.1. </a><a href="#name-option-format" class="section-name selfRef">Option Format</a>
+        </h3>
+<p id="section-3.1-1">This document specifies a new EDNS(0) <span>[<a href="#RFC6891" class="cite xref">RFC6891</a>]</span> option by which a
+client asks the resolver to forward its address information.<a href="#section-3.1-1" class="pilcrow">¶</a></p>
+<p id="section-3.1-2">OPTION-CODE for this option is TBD.<a href="#section-3.1-2" class="pilcrow">¶</a></p>
+<p id="section-3.1-3">OPTION-LENGTH <span class="bcp14">MUST</span> have a value of 0 or 1 for queries and <span class="bcp14">MUST</span> have the
+value 1 for responses.  <span>[<a href="#RFC7314" class="cite xref">RFC7314</a>]</span> and <span>[<a href="#RFC7828" class="cite xref">RFC7828</a>]</span> likewise define
+options whose length differs between queries and responses.<a href="#section-3.1-3" class="pilcrow">¶</a></p>
+<p id="section-3.1-4">OPTION-DATA, where present, is a single field:<a href="#section-3.1-4" class="pilcrow">¶</a></p>
+<span id="name-option-data-format-for-the-"></span><figure id="figure-1">
+          <div class="alignLeft art-text artwork" id="section-3.1-5.1">
+<pre>
+                 0   1   2   3   4   5   6   7
+               +---+---+---+---+---+---+---+---+
+               |         PREFIX-LENGTH         |
+               +---+---+---+---+---+---+---+---+
+</pre>
+</div>
+<figcaption><a href="#figure-1" class="selfRef">Figure 1</a>:
+<a href="#name-option-data-format-for-the-" class="selfRef">OPTION-DATA Format for the ECS Opt-In Option</a>
+          </figcaption></figure>
+<p id="section-3.1-6">PREFIX-LENGTH is an unsigned 1-octet field.  In a query it is the largest
+number of address bits the client permits the resolver to forward.  A
+query that omits OPTION-DATA sets no such limit.  In a response it is the
+effective prefix length defined in <a href="#resolver-behavior" class="auto internal xref">Section 3.3</a>, the largest
+number of address bits the resolver may forward for that query.<a href="#section-3.1-6" class="pilcrow">¶</a></p>
+<p id="section-3.1-7">The option has no address family field.  The resolver interprets
+PREFIX-LENGTH in the address family of the address it forwards.<a href="#section-3.1-7" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="client-behavior">
+<section id="section-3.2">
+        <h3 id="name-client-behavior">
+<a href="#section-3.2" class="section-number selfRef">3.2. </a><a href="#name-client-behavior" class="section-name selfRef">Client Behavior</a>
+        </h3>
+<p id="section-3.2-1">A client that wants to permit the resolver to forward a prefix of its address
+<span class="bcp14">MUST</span> include exactly one instance of this option in the query.  To limit
+how many address bits the resolver forwards, it uses the one-octet form.
+With the zero-length form the resolver's own maximum applies, as
+<a href="#resolver-behavior" class="auto internal xref">Section 3.3</a> describes.<a href="#section-3.2-1" class="pilcrow">¶</a></p>
+<p id="section-3.2-2">A client that permits nothing to be forwarded <span class="bcp14">SHOULD</span> omit the option.  A
+PREFIX-LENGTH of 0 forwards nothing either, but on an unencrypted
+transport it tells anyone on the path that the client implements this
+specification.<a href="#section-3.2-2" class="pilcrow">¶</a></p>
+<p id="section-3.2-3">A client <span class="bcp14">MAY</span> include an ECS option in the same query.  A client that
+knows the public address it is seen as coming from can supply it that
+way.  A client that does not know that address can still set a limit with the
+one-octet form, which does not need one.
+<a href="#relationship-to-ecs" class="auto internal xref">Section 3.4</a> specifies how the two options interact.<a href="#section-3.2-3" class="pilcrow">¶</a></p>
+<p id="section-3.2-4">A client <span class="bcp14">SHOULD NOT</span> supply a private address in an ECS option, because
+<a href="#resolver-behavior" class="auto internal xref">Section 3.3</a> has the resolver forward nothing for such a query.
+A client that supplies an address and receives a value of 0 can retry
+with the one-octet form.<a href="#section-3.2-4" class="pilcrow">¶</a></p>
+<p id="section-3.2-5">A client <span class="bcp14">MUST</span> treat this option as absent in a response whose
+OPTION-LENGTH is not 1, and in a response that includes more than one
+instance of it.  Neither case tells the client what the resolver
+forwarded.<a href="#section-3.2-5" class="pilcrow">¶</a></p>
+<p id="section-3.2-6">A client <span class="bcp14">MUST NOT</span> treat the arrival of a response as evidence that its
+limit was honored.  A resolver that does not implement this option
+ignores it, per <span><a href="https://rfc-editor.org/rfc/rfc6891#section-6.1.2" class="relref">Section 6.1.2</a> of [<a href="#RFC6891" class="cite xref">RFC6891</a>]</span>, and answers as it would
+have anyway.  <a href="#security-considerations" class="auto internal xref">Section 7</a> covers how much a client
+can trust the reported value.<a href="#section-3.2-6" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="resolver-behavior">
+<section id="section-3.3">
+        <h3 id="name-recursive-resolver-behavior">
+<a href="#section-3.3" class="section-number selfRef">3.3. </a><a href="#name-recursive-resolver-behavior" class="section-name selfRef">Recursive Resolver Behavior</a>
+        </h3>
+<p id="section-3.3-1">A resolver implementing this document <span class="bcp14">MUST NOT</span> forward a client's
+address information for a query that does not include this option.<a href="#section-3.3-1" class="pilcrow">¶</a></p>
+<p id="section-3.3-2">For a query that includes this option, the resolver selects the address
+to forward.  Where the query also includes an ECS option with a nonzero
+SOURCE PREFIX-LENGTH and a FAMILY of 1 or 2, the resolver takes FAMILY
+and ADDRESS from that option, which <span><a href="https://rfc-editor.org/rfc/rfc7871#section-7.1.1" class="relref">Section 7.1.1</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span>
+permits, and <span class="bcp14">MUST NOT</span> use a different address.  Otherwise it uses the
+source address of the query, so a client need not know the address the
+resolver observes.<a href="#section-3.3-2" class="pilcrow">¶</a></p>
+<p id="section-3.3-3"><span><a href="https://rfc-editor.org/rfc/rfc7871#section-11.2" class="relref">Section 11.2</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span> requires a response to mirror the ECS fields
+of the query.  A resolver that used a different address would therefore
+indicate that its answer is tailored for the network the client named
+when it had asked about another, the anomaly
+<span><a href="https://rfc-editor.org/rfc/rfc7871#section-7.5" class="relref">Section 7.5</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span> describes.<a href="#section-3.3-3" class="pilcrow">¶</a></p>
+<p id="section-3.3-4">The resolver then calculates an effective prefix length, the smallest of<a href="#section-3.3-4" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-3.3-5.1">
+            <p id="section-3.3-5.1.1">the PREFIX-LENGTH in the query, if it used the one-octet form,<a href="#section-3.3-5.1.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-3.3-5.2">
+            <p id="section-3.3-5.2.1">the SOURCE PREFIX-LENGTH of an ECS option, if the query included one,<a href="#section-3.3-5.2.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-3.3-5.3">
+            <p id="section-3.3-5.3.1">the resolver's own maximum cacheable prefix length, and<a href="#section-3.3-5.3.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-3.3-5.4">
+            <p id="section-3.3-5.4.1">the maximum prefix length of the address family of the selected
+address, that is 32 for IPv4 and 128 for IPv6.<a href="#section-3.3-5.4.1" class="pilcrow">¶</a></p>
+</li>
+        </ul>
+<p id="section-3.3-6">The resolver <span class="bcp14">MUST NOT</span> forward more bits of that address than the
+effective prefix length.  <span><a href="https://rfc-editor.org/rfc/rfc7871#section-7.1.1" class="relref">Section 7.1.1</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span> already combines
+two of these four the same way, having the resolver use the shorter of
+the incoming SOURCE PREFIX-LENGTH and its own maximum cacheable prefix
+length.<a href="#section-3.3-6" class="pilcrow">¶</a></p>
+<p id="section-3.3-7">Where the query includes an ECS option whose FAMILY is neither 1 nor 2,
+the effective prefix length for that query is 0.
+<span><a href="https://rfc-editor.org/rfc/rfc7871#section-6" class="relref">Section 6</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span> defines the address format only for FAMILY 1
+and FAMILY 2, so the resolver has no address to take from that option.
+Using the source address it observed instead would produce the anomaly
+described above.<a href="#section-3.3-7" class="pilcrow">¶</a></p>
+<p id="section-3.3-8">A resolver <span class="bcp14">SHOULD NOT</span> forward an unroutable address supplied by a
+client, such as one from the special-purpose blocks <span>[<a href="#RFC6890" class="cite xref">RFC6890</a>]</span>
+defines, or a routable address the query source is known not to serve.
+<span><a href="https://rfc-editor.org/rfc/rfc7871#section-11.3" class="relref">Section 11.3</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span> recommends treating an unroutable address
+as equivalent to the resolver's own identity, and ignoring and never
+forwarding an address the query source is known not to serve.  This
+document has the resolver forward nothing in either case, which is
+documented under <a href="#deviations" class="auto internal xref">Section 5</a>.  A client behind a NAT that does not
+know it is behind one supplies an unroutable address.  Where the
+resolver does not forward the supplied address, the effective prefix
+length for that query is 0.<a href="#section-3.3-8" class="pilcrow">¶</a></p>
+<p id="section-3.3-9">A resolver <span class="bcp14">MAY</span> decline to forward a client's address information for any
+query, a choice <span><a href="https://rfc-editor.org/rfc/rfc7871#section-5" class="relref">Section 5</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span> leaves with the resolver.  The
+effective prefix length for such a query is 0.<a href="#section-3.3-9" class="pilcrow">¶</a></p>
+<p id="section-3.3-10">If the effective prefix length is nonzero, the resolver constructs an
+ordinary ECS option as described in <span><a href="https://rfc-editor.org/rfc/rfc7871#section-7.1.1" class="relref">Section 7.1.1</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span>, with
+FAMILY and ADDRESS from the selected address and SOURCE PREFIX-LENGTH set
+to the effective prefix length.  The rest of the exchange, including how
+the resolver handles the authoritative server's SCOPE PREFIX-LENGTH,
+follows <span>[<a href="#RFC7871" class="cite xref">RFC7871</a>]</span> unchanged.<a href="#section-3.3-10" class="pilcrow">¶</a></p>
+<p id="section-3.3-11">The resolver <span class="bcp14">MUST</span> treat the query as though this option were absent, and
+therefore forward nothing, in each of the following cases:<a href="#section-3.3-11" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-3.3-12.1">
+            <p id="section-3.3-12.1.1">OPTION-LENGTH is greater than 1<a href="#section-3.3-12.1.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-3.3-12.2">
+            <p id="section-3.3-12.2.1">more than one instance of the option is present<a href="#section-3.3-12.2.1" class="pilcrow">¶</a></p>
+</li>
+        </ul>
+<p id="section-3.3-13">This departs from the usual handling of a malformed EDNS option.
+<span><a href="https://rfc-editor.org/rfc/rfc7871#section-6" class="relref">Section 6</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span> recommends FORMERR for a malformed ECS option,
+and <span>[<a href="#RFC7873" class="cite xref">RFC7873</a>]</span> and <span>[<a href="#RFC9660" class="cite xref">RFC9660</a>]</span> specify FORMERR for their own options.
+This document does not, because the option is an optional privacy
+control.  A client that encodes it incorrectly would lose name resolution
+altogether, whereas treating the option as absent forwards nothing and
+lets resolution continue.<a href="#section-3.3-13" class="pilcrow">¶</a></p>
+<p id="section-3.3-14">A PREFIX-LENGTH larger than the family maximum is not an error.  The
+calculation above reduces it to the family maximum.<a href="#section-3.3-14" class="pilcrow">¶</a></p>
+<div id="response">
+<section id="section-3.3.1">
+          <h4 id="name-response">
+<a href="#section-3.3.1" class="section-number selfRef">3.3.1. </a><a href="#name-response" class="section-name selfRef">Response</a>
+          </h4>
+<p id="section-3.3.1-1">If the query included this option and the resolver did not treat it as
+absent, the response <span class="bcp14">MUST</span> include exactly one instance of it, with
+PREFIX-LENGTH set to the effective prefix length.<a href="#section-3.3.1-1" class="pilcrow">¶</a></p>
+<p id="section-3.3.1-2">If the query did not include this option, or the resolver treated it as
+absent under <a href="#resolver-behavior" class="auto internal xref">Section 3.3</a>, the response <span class="bcp14">MUST NOT</span> include this
+option.  The resolver forwarded no address information for that query and
+therefore did not use ECS, so the response requirements of
+<span><a href="https://rfc-editor.org/rfc/rfc7871#section-7.2.2" class="relref">Section 7.2.2</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span> do not apply, as <a href="#relationship-to-ecs" class="auto internal xref">Section 3.4</a>
+explains.  The client receives the response it
+would have received from a resolver that does not implement ECS.<a href="#section-3.3.1-2" class="pilcrow">¶</a></p>
+<p id="section-3.3.1-3">If the query included an ECS option and the effective prefix length is
+nonzero, the response <span class="bcp14">MUST</span> include an ECS option, as <span><a href="https://rfc-editor.org/rfc/rfc7871#section-7.2.2" class="relref">Section 7.2.2</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span> requires of a resolver that uses ECS.  Its FAMILY, ADDRESS and
+SOURCE PREFIX-LENGTH are those of the query, which <span><a href="https://rfc-editor.org/rfc/rfc7871#section-11.2" class="relref">Section 11.2</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span> requires as a countermeasure against birthday attacks.  That
+requirement holds even where the resolver forwarded fewer address bits
+upstream than the query contained.  SCOPE PREFIX-LENGTH reports the scope
+of the answer.  Otherwise the response <span class="bcp14">MUST NOT</span> include an ECS option.<a href="#section-3.3.1-3" class="pilcrow">¶</a></p>
+<p id="section-3.3.1-4">The reported value is the effective prefix length computed for that
+query, and it does not depend on whether the answer came from cache.<a href="#section-3.3.1-4" class="pilcrow">¶</a></p>
+<p id="section-3.3.1-5">A client that sent the option can distinguish three cases from the
+response.  An absent option means the resolver does not implement this
+specification, or that the option was removed in transit.  Such a
+resolver may still use ECS of its own accord.  A value of 0 means the
+resolver implements this specification and will forward nothing.  A value
+of N means the resolver will forward at most N bits of that client's
+address.<a href="#section-3.3.1-5" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="relationship-to-ecs">
+<section id="section-3.4">
+        <h3 id="name-relationship-to-the-ecs-opt">
+<a href="#section-3.4" class="section-number selfRef">3.4. </a><a href="#name-relationship-to-the-ecs-opt" class="section-name selfRef">Relationship to the ECS Option</a>
+        </h3>
+<p id="section-3.4-1">The two options have different roles, and a query may include either or
+both.  This option asks the resolver to forward the client's address
+information.  An ECS option supplies the address to forward and, in its
+SOURCE PREFIX-LENGTH, a limit of its own.<a href="#section-3.4-1" class="pilcrow">¶</a></p>
+<p id="section-3.4-2">An ECS option cannot state a nonzero limit without an address.
+<span><a href="https://rfc-editor.org/rfc/rfc7871#section-6" class="relref">Section 6</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span> requires ADDRESS to hold the client's address
+truncated to SOURCE PREFIX-LENGTH bits, and a stub resolver behind a NAT,
+a carrier-grade NAT, or a VPN may not know its actual outbound address
+that is exposed to the resolver.  The private address it does know is no
+substitute, because
+<span><a href="https://rfc-editor.org/rfc/rfc7871#section-11.3" class="relref">Section 11.3</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span> recommends against forwarding such an
+address and <a href="#resolver-behavior" class="auto internal xref">Section 3.3</a> then forwards nothing for the query.
+Such a client sets its limit with the one-octet form of this option that
+does not need an address.<a href="#section-3.4-2" class="pilcrow">¶</a></p>
+<p id="section-3.4-3">When both options state a limit, the smaller governs, as
+<a href="#resolver-behavior" class="auto internal xref">Section 3.3</a> specifies.  A larger value in this option cannot
+raise the ECS limit, because <span><a href="https://rfc-editor.org/rfc/rfc7871#section-7.1.2" class="relref">Section 7.1.2</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span> forbids an
+Intermediate Nameserver to send more bits of client address than the
+originating query included.<a href="#section-3.4-3" class="pilcrow">¶</a></p>
+<p id="section-3.4-4">An ECS option on its own is not an opt-in.  For a query that includes one
+and no instance of the opt-in option, the resolver forwards nothing, as
+<a href="#resolver-behavior" class="auto internal xref">Section 3.3</a> requires.  A Forwarding Resolver may add an ECS
+option for the clients it serves, as <span><a href="https://rfc-editor.org/rfc/rfc7871#section-7.1.3" class="relref">Section 7.1.3</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span>
+describes, so an ECS option says nothing about what the client that sent
+the query wants.  A resolver never forwards this option
+(<a href="#non-transitivity" class="auto internal xref">Section 3.5</a>), so only that client can have added it.<a href="#section-3.4-4" class="pilcrow">¶</a></p>
+<p id="section-3.4-5"><span><a href="https://rfc-editor.org/rfc/rfc7871#section-7.1.1" class="relref">Section 7.1.1</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span> and <span><a href="https://rfc-editor.org/rfc/rfc7871#section-7.5" class="relref">Section 7.5</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span> tell a
+resolver to return REFUSED when it will not use a client's ECS option.  A
+resolver implementing this document answers the query instead.  It <span class="bcp14">MUST NOT</span> refuse a query solely because the query included an ECS option
+without this option.  <span><a href="https://rfc-editor.org/rfc/rfc7871#section-7.5" class="relref">Section 7.5</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span>
+already makes an exception of this kind, noting "that a query <span class="bcp14">MUST NOT</span> be
+refused solely because it provides 0 address bits".<a href="#section-3.4-5" class="pilcrow">¶</a></p>
+<p id="section-3.4-6"><span><a href="https://rfc-editor.org/rfc/rfc7871#section-7.2.2" class="relref">Section 7.2.2</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span> states its response requirements for the
+case "When an Intermediate Nameserver uses ECS".  This document reads
+that condition per query, so the requirements do not apply to a query for
+which the resolver forwards nothing.<a href="#section-3.4-6" class="pilcrow">¶</a></p>
+<p id="section-3.4-7">Each value below is further limited by the maximum prefix length of the
+address family, and a resolver that declines under <a href="#resolver-behavior" class="auto internal xref">Section 3.3</a>
+forwards nothing in any of these cases.<a href="#section-3.4-7" class="pilcrow">¶</a></p>
+<span id="name-address-bits-forwarded-for-"></span><table class="center" id="table-1">
+          <caption>
+<a href="#table-1" class="selfRef">Table 1</a>:
+<a href="#name-address-bits-forwarded-for-" class="selfRef">Address Bits Forwarded for Each Combination of Options</a>
+          </caption>
+<thead>
+            <tr>
+              <th class="text-left" rowspan="1" colspan="1">Query includes</th>
+              <th class="text-left" rowspan="1" colspan="1">Bits of the client's address forwarded</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">neither option</td>
+              <td class="text-left" rowspan="1" colspan="1">none</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">an ECS option only</td>
+              <td class="text-left" rowspan="1" colspan="1">none</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">this option, zero-length</td>
+              <td class="text-left" rowspan="1" colspan="1">the resolver's maximum</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">this option, one octet N</td>
+              <td class="text-left" rowspan="1" colspan="1">the smallest of N and the resolver's maximum</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">both options</td>
+              <td class="text-left" rowspan="1" colspan="1">the smallest of all limits present</td>
+            </tr>
+          </tbody>
+        </table>
+</section>
+</div>
+<div id="non-transitivity">
+<section id="section-3.5">
+        <h3 id="name-non-transitivity">
+<a href="#section-3.5" class="section-number selfRef">3.5. </a><a href="#name-non-transitivity" class="section-name selfRef">Non-Transitivity</a>
+        </h3>
+<p id="section-3.5-1">A resolver <span class="bcp14">MUST NOT</span> include this option in queries it sends to
+authoritative servers, and <span class="bcp14">MUST NOT</span> copy it from a client query into any
+upstream query.<a href="#section-3.5-1" class="pilcrow">¶</a></p>
+<p id="section-3.5-2"><span><a href="https://rfc-editor.org/rfc/rfc6891#section-1" class="relref">Section 1</a> of [<a href="#RFC6891" class="cite xref">RFC6891</a>]</span> describes EDNS as a hop-by-hop extension,
+negotiated between each pair of hosts in the resolution process, and
+<span><a href="https://rfc-editor.org/rfc/rfc6891#section-6.1.1" class="relref">Section 6.1.1</a> of [<a href="#RFC6891" class="cite xref">RFC6891</a>]</span> forbids forwarding an OPT RR.  This
+option is an instruction to the recursive resolver that receives the
+query.  It means nothing to an authoritative server, which learns the
+client's network from an ECS option.<a href="#section-3.5-2" class="pilcrow">¶</a></p>
+<p id="section-3.5-3">A Forwarding Resolver is itself a client of the resolver it queries.  It
+<span class="bcp14">MAY</span> include this option in its own upstream queries, and <span class="bcp14">MUST NOT</span> set a
+limit larger than the one its client set.
+<span><a href="https://rfc-editor.org/rfc/rfc7871#section-7.1.3" class="relref">Section 7.1.3</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span> places the same duty on a Forwarding
+Resolver using ECS, which must honor the SOURCE PREFIX-LENGTH
+restrictions in the incoming query from its client.<a href="#section-3.5-3" class="pilcrow">¶</a></p>
+<p id="section-3.5-4">A Forwarding Resolver that constructs the ECS option itself reports to
+its client the number of address bits it forwards.  Where it leaves the
+ECS option to the resolver it queries, that resolver forwards the
+Forwarding Resolver's own address.  No bits of the client's address reach
+an authoritative server, and the Forwarding Resolver <span class="bcp14">MUST</span> report 0.<a href="#section-3.5-4" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="caching">
+<section id="section-4">
+      <h2 id="name-caching">
+<a href="#section-4" class="section-number selfRef">4. </a><a href="#name-caching" class="section-name selfRef">Caching</a>
+      </h2>
+<p id="section-4-1">A resolver <span class="bcp14">MUST NOT</span> return an answer obtained using ECS to a client that
+is not a signaling client, and <span class="bcp14">MUST</span> be able to determine, for any cache
+entry, whether it obtained that entry using ECS.<a href="#section-4-1" class="pilcrow">¶</a></p>
+<p id="section-4-2"><span><a href="https://rfc-editor.org/rfc/rfc7871#section-7.3.2" class="relref">Section 7.3.2</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span> matches a lookup from a client that sent no
+ECS option against that client's own address, which could return a
+Tailored Response fetched for someone else.  Excluding entries obtained
+using ECS leaves no matching network, and that section then requires the
+resolver to perform resolution as usual, which it explains is "to avoid
+Tailored Responses in the cache from being returned to the wrong
+clients".<a href="#section-4-2" class="pilcrow">¶</a></p>
+<p id="section-4-3">For signaling clients, the caching and longest-prefix matching rules of
+<span><a href="https://rfc-editor.org/rfc/rfc7871#section-7.3" class="relref">Section 7.3</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span> apply unchanged.  A cache entry whose SOURCE
+PREFIX-LENGTH is longer than a signaling client's effective prefix length
+<span class="bcp14">MAY</span> answer that client, because serving it forwards nothing.  A client's
+limit applies only to the address information the resolver forwards and
+thus does not restrict which cache entry may answer that client.<a href="#section-4-3" class="pilcrow">¶</a></p>
+<p id="section-4-4">Keeping signaling and non-signaling clients on separate caches implements
+the rule above, and a resolver that already supports more than one cache
+needs no new machinery for it.<a href="#section-4-4" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="deviations">
+<section id="section-5">
+      <h2 id="name-deviations-from-rfc-7871">
+<a href="#section-5" class="section-number selfRef">5. </a><a href="#name-deviations-from-rfc-7871" class="section-name selfRef">Deviations from RFC 7871</a>
+      </h2>
+<p id="section-5-1">A resolver implementing this document differs from <span>[<a href="#RFC7871" class="cite xref">RFC7871</a>]</span> in four
+places.<a href="#section-5-1" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="normal type-1" id="section-5-2">
+<li id="section-5-2.1">
+          <p id="section-5-2.1.1">It answers a query whose ECS information it does not use, where
+<span><a href="https://rfc-editor.org/rfc/rfc7871#section-7.1.1" class="relref">Section 7.1.1</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span> and <span><a href="https://rfc-editor.org/rfc/rfc7871#section-7.5" class="relref">Section 7.5</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span>
+recommend REFUSED.  <a href="#relationship-to-ecs" class="auto internal xref">Section 3.4</a> states that rule and the
+precedent <span><a href="https://rfc-editor.org/rfc/rfc7871#section-7.5" class="relref">Section 7.5</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span> sets for it by exempting a query
+that provides 0 address bits from refusal.<a href="#section-5-2.1.1" class="pilcrow">¶</a></p>
+</li>
+        <li id="section-5-2.2">
+          <p id="section-5-2.2.1">It excludes entries obtained using ECS from lookups for clients that
+did not opt in.  <a href="#caching" class="auto internal xref">Section 4</a> states that rule, which is stricter than
+<span><a href="https://rfc-editor.org/rfc/rfc7871#section-7.3.2" class="relref">Section 7.3.2</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span> and serves the purpose that section
+gives for its own.<a href="#section-5-2.2.1" class="pilcrow">¶</a></p>
+</li>
+        <li id="section-5-2.3">
+          <p id="section-5-2.3.1">It reads the condition that scopes the response requirements of
+<span><a href="https://rfc-editor.org/rfc/rfc7871#section-7.2.2" class="relref">Section 7.2.2</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span> per query.  <a href="#relationship-to-ecs" class="auto internal xref">Section 3.4</a>
+quotes that condition and explains what follows from the reading.<a href="#section-5-2.3.1" class="pilcrow">¶</a></p>
+</li>
+        <li id="section-5-2.4">
+          <p id="section-5-2.4.1">It forwards nothing when it receives an unroutable address from a
+client, where <span><a href="https://rfc-editor.org/rfc/rfc7871#section-11.3" class="relref">Section 11.3</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span> recommends treating that
+address as the resolver's own identity.  This behavior is documented
+under <a href="#resolver-behavior" class="auto internal xref">Section 3.3</a>.<a href="#section-5-2.4.1" class="pilcrow">¶</a></p>
+</li>
+      </ol>
+<p id="section-5-3">Whether these warrant an Updates relationship with <span>[<a href="#RFC7871" class="cite xref">RFC7871</a>]</span> is
+recorded in <a href="#open-issues" class="auto internal xref">Appendix B</a>.<a href="#section-5-3" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="deployment-considerations">
+<section id="section-6">
+      <h2 id="name-deployment-considerations">
+<a href="#section-6" class="section-number selfRef">6. </a><a href="#name-deployment-considerations" class="section-name selfRef">Deployment Considerations</a>
+      </h2>
+<p id="section-6-1">A resolver that does not implement this option ignores it and answers as
+it would have anyway, because <span><a href="https://rfc-editor.org/rfc/rfc6891#section-6.1.2" class="relref">Section 6.1.2</a> of [<a href="#RFC6891" class="cite xref">RFC6891</a>]</span> requires that
+"Any OPTION-CODE values not understood by a responder or requestor <span class="bcp14">MUST</span>
+be ignored".  Clients and resolvers therefore need not be upgraded
+together.<a href="#section-6-1" class="pilcrow">¶</a></p>
+<p id="section-6-2">An operator that turns this option on changes what its existing clients
+receive.  A client that sends an ECS option alone no longer has its
+address information forwarded, and receives untailored answers until it
+also sends this option.  <span><a href="https://rfc-editor.org/rfc/rfc7871#section-5" class="relref">Section 5</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span> leaves that choice
+with the resolver.<a href="#section-6-2" class="pilcrow">¶</a></p>
+<p id="section-6-3">A client can discover whether a resolver implements this option by
+sending it and looking at the response, which costs one query and is
+described in <a href="#resolver-behavior" class="auto internal xref">Section 3.3</a>.  That is sufficient for most
+purposes.<a href="#section-6-3" class="pilcrow">¶</a></p>
+<p id="section-6-4">Such a resolver may still forward the client's address information,
+including for the query used as a probe.  A client probing a resolver it
+has not used before <span class="bcp14">SHOULD</span>
+include an ECS option with SOURCE PREFIX-LENGTH 0.
+<span><a href="https://rfc-editor.org/rfc/rfc7871#section-7.1.2" class="relref">Section 7.1.2</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span> obliges a resolver that uses ECS to honor
+that opt-out, and a resolver implementing this option takes the smallest
+limit present, so neither forwards anything.  The response still shows
+whether the option is supported, and a second query without the ECS
+option reveals the resolver's own maximum.<a href="#section-6-4" class="pilcrow">¶</a></p>
+<p id="section-6-5">Where a resolver publishes information about itself using DNS Resolver
+Information <span>[<a href="#RFC9606" class="cite xref">RFC9606</a>]</span>, support for this option would be a natural
+thing to advertise there.  Defining such a key is left to future work,
+since the response already gives clients an easy way to find out.<a href="#section-6-5" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="security-considerations">
+<section id="section-7">
+      <h2 id="name-security-considerations">
+<a href="#section-7" class="section-number selfRef">7. </a><a href="#name-security-considerations" class="section-name selfRef">Security Considerations</a>
+      </h2>
+<p id="section-7-1">The value in a response is the resolver's own statement about what it
+forwarded, and DNSSEC does not protect it, since OPT records are not
+signed (<span><a href="https://rfc-editor.org/rfc/rfc7871#section-9" class="relref">Section 9</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span>).  An encrypted transport keeps that
+value from being altered in transit and does not make it accurate.  A
+resolver can forward more address bits than the client permitted and
+report a smaller number, which the client can detect only by observing
+what authoritative servers receive.  This option is a request to a
+resolver that the client has already trusted with every query it sends,
+and it gives no protection against a resolver that is hostile or
+compromised.<a href="#section-7-1" class="pilcrow">¶</a></p>
+<p id="section-7-2">On an unencrypted transport, an on-path attacker can strip this option,
+add it, or change its value.  Stripping it leaves the resolver forwarding
+nothing.  Adding it, or raising the value, forwards address bits the
+client did not offer.  The same attacker can change the value in the
+response, so a client on an unencrypted transport cannot rely on it.  A
+client that needs its limit respected <span class="bcp14">SHOULD</span> use an encrypted transport
+such as <span>[<a href="#RFC7858" class="cite xref">RFC7858</a>]</span>, <span>[<a href="#RFC8484" class="cite xref">RFC8484</a>]</span>, or <span>[<a href="#RFC9250" class="cite xref">RFC9250</a>]</span>.<a href="#section-7-2" class="pilcrow">¶</a></p>
+<p id="section-7-3">A client that remembers whether a resolver supports this option is
+trusting a single response, which an on-path attacker can alter or forge.
+Such a client <span class="bcp14">SHOULD</span> confirm support over an encrypted transport.<a href="#section-7-3" class="pilcrow">¶</a></p>
+<p id="section-7-4">An attacker can send this option from forged source addresses, which
+subjects a resolver that would otherwise forward nothing to the cache
+pollution described in <span><a href="https://rfc-editor.org/rfc/rfc7871#section-11.3" class="relref">Section 11.3</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span>.<a href="#section-7-4" class="pilcrow">¶</a></p>
+<p id="section-7-5">A resolver that implements this option and serves signaling and
+non-signaling clients from one cache, without distinguishing the entries
+obtained using ECS, returns tailored answers to clients that did not opt
+in, and no field in the response marks an answer as tailored.  The
+requirement in <a href="#caching" class="auto internal xref">Section 4</a> is therefore part of implementing this
+option.<a href="#section-7-5" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="privacy-considerations">
+<section id="section-8">
+      <h2 id="name-privacy-considerations">
+<a href="#section-8" class="section-number selfRef">8. </a><a href="#name-privacy-considerations" class="section-name selfRef">Privacy Considerations</a>
+      </h2>
+<p id="section-8-1">Under <span>[<a href="#RFC7871" class="cite xref">RFC7871</a>]</span>, a client of an ECS-enabled resolver has its address
+information forwarded unless it opts out.  Under this document, a
+resolver forwards nothing unless the client asks.<a href="#section-8-1" class="pilcrow">¶</a></p>
+<p id="section-8-2">For a client that opts in, the analysis in <span><a href="https://rfc-editor.org/rfc/rfc7871#section-11" class="relref">Section 11</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span>
+applies unchanged, with one addition that the client can set the limit
+without supplying an address, as <a href="#relationship-to-ecs" class="auto internal xref">Section 3.4</a> describes.  The
+forwarded prefix reaches every authoritative server to which the resolver
+sends ECS, along with anyone able to observe that traffic.
+<span><a href="https://rfc-editor.org/rfc/rfc7871#section-12.1" class="relref">Section 12.1</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span> bounds that set, recommending that a
+resolver omit the option toward nameservers that did not return it and
+never send it to root, top-level and effective top-level domain servers.
+A client
+should set the shortest limit that still yields useful answers, and
+should not treat a short prefix as anonymous.<a href="#section-8-2" class="pilcrow">¶</a></p>
+<p id="section-8-3">On an unencrypted transport, anyone on the path can see that a query
+includes this option, which marks the client as one that implements this
+document.  The one-octet form also reveals the client's limit.  Neither
+identifies a client on its own.<a href="#section-8-3" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="iana-considerations">
+<section id="section-9">
+      <h2 id="name-iana-considerations">
+<a href="#section-9" class="section-number selfRef">9. </a><a href="#name-iana-considerations" class="section-name selfRef">IANA Considerations</a>
+      </h2>
+<p id="section-9-1">IANA is requested to assign an option code from the "DNS EDNS0 Option
+Codes (OPT)" registry in the "Domain Name System (DNS) Parameters"
+registry group.  Values in the range 1 to 65000 in that registry are
+assigned under the Expert Review policy of
+<span><a href="https://rfc-editor.org/rfc/rfc8126#section-4.5" class="relref">Section 4.5</a> of [<a href="#RFC8126" class="cite xref">RFC8126</a>]</span>.<a href="#section-9-1" class="pilcrow">¶</a></p>
+<p id="section-9-2">That registry also sets a range aside for local and experimental use.
+This document does not take a value from it.
+<span><a href="https://rfc-editor.org/rfc/rfc8126#section-4.2" class="relref">Section 4.2</a> of [<a href="#RFC8126" class="cite xref">RFC8126</a>]</span> says of such a range that assignments from it
+"are not generally useful for broad interoperability", and that "Unless
+the registry explicitly allows it, it is not appropriate for documents to
+select explicit values from registries or ranges with this policy."  An
+assigned code point can be implemented in released software.<a href="#section-9-2" class="pilcrow">¶</a></p>
+<span id="name-edns0-option-code-requested"></span><table class="center" id="table-2">
+        <caption>
+<a href="#table-2" class="selfRef">Table 2</a>:
+<a href="#name-edns0-option-code-requested" class="selfRef">EDNS(0) Option Code Requested</a>
+        </caption>
+<thead>
+          <tr>
+            <th class="text-left" rowspan="1" colspan="1">Value</th>
+            <th class="text-left" rowspan="1" colspan="1">Name</th>
+            <th class="text-left" rowspan="1" colspan="1">Status</th>
+            <th class="text-left" rowspan="1" colspan="1">Reference</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="text-left" rowspan="1" colspan="1">TBD</td>
+            <td class="text-left" rowspan="1" colspan="1">edns-client-subnet-opt-in</td>
+            <td class="text-left" rowspan="1" colspan="1">Optional</td>
+            <td class="text-left" rowspan="1" colspan="1">This document</td>
+          </tr>
+        </tbody>
+      </table>
+</section>
+</div>
+<div id="sec-combined-references">
+<section id="section-10">
+      <h2 id="name-references">
+<a href="#section-10" class="section-number selfRef">10. </a><a href="#name-references" class="section-name selfRef">References</a>
+      </h2>
+<div id="sec-normative-references">
+<section id="section-10.1">
+        <h3 id="name-normative-references">
+<a href="#section-10.1" class="section-number selfRef">10.1. </a><a href="#name-normative-references" class="section-name selfRef">Normative References</a>
+        </h3>
+<dl class="references">
+<dt id="RFC7871">[RFC7871]</dt>
+        <dd>
+<span class="refAuthor">Contavalli, C.</span>, <span class="refAuthor">van der Gaast, W.</span>, <span class="refAuthor">Lawrence, D.</span>, and <span class="refAuthor">W. Kumari</span>, <span class="refTitle">"Client Subnet in DNS Queries"</span>, <span class="seriesInfo">RFC 7871</span>, <span class="seriesInfo">DOI 10.17487/RFC7871</span>, <time datetime="2016-05" class="refDate">May 2016</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc7871">https://www.rfc-editor.org/info/rfc7871</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC2119">[RFC2119]</dt>
+        <dd>
+<span class="refAuthor">Bradner, S.</span>, <span class="refTitle">"Key words for use in RFCs to Indicate Requirement Levels"</span>, <span class="seriesInfo">BCP 14</span>, <span class="seriesInfo">RFC 2119</span>, <span class="seriesInfo">DOI 10.17487/RFC2119</span>, <time datetime="1997-03" class="refDate">March 1997</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc2119">https://www.rfc-editor.org/info/rfc2119</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC8174">[RFC8174]</dt>
+        <dd>
+<span class="refAuthor">Leiba, B.</span>, <span class="refTitle">"Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words"</span>, <span class="seriesInfo">BCP 14</span>, <span class="seriesInfo">RFC 8174</span>, <span class="seriesInfo">DOI 10.17487/RFC8174</span>, <time datetime="2017-05" class="refDate">May 2017</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc8174">https://www.rfc-editor.org/info/rfc8174</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC9499">[RFC9499]</dt>
+        <dd>
+<span class="refAuthor">Hoffman, P.</span> and <span class="refAuthor">K. Fujiwara</span>, <span class="refTitle">"DNS Terminology"</span>, <span class="seriesInfo">BCP 219</span>, <span class="seriesInfo">RFC 9499</span>, <span class="seriesInfo">DOI 10.17487/RFC9499</span>, <time datetime="2024-03" class="refDate">March 2024</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc9499">https://www.rfc-editor.org/info/rfc9499</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC6891">[RFC6891]</dt>
+      <dd>
+<span class="refAuthor">Damas, J.</span>, <span class="refAuthor">Graff, M.</span>, and <span class="refAuthor">P. Vixie</span>, <span class="refTitle">"Extension Mechanisms for DNS (EDNS(0))"</span>, <span class="seriesInfo">STD 75</span>, <span class="seriesInfo">RFC 6891</span>, <span class="seriesInfo">DOI 10.17487/RFC6891</span>, <time datetime="2013-04" class="refDate">April 2013</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc6891">https://www.rfc-editor.org/info/rfc6891</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+</dl>
+</section>
+</div>
+<div id="sec-informative-references">
+<section id="section-10.2">
+        <h3 id="name-informative-references">
+<a href="#section-10.2" class="section-number selfRef">10.2. </a><a href="#name-informative-references" class="section-name selfRef">Informative References</a>
+        </h3>
+<dl class="references">
+<dt id="RFC7314">[RFC7314]</dt>
+        <dd>
+<span class="refAuthor">Andrews, M.</span>, <span class="refTitle">"Extension Mechanisms for DNS (EDNS) EXPIRE Option"</span>, <span class="seriesInfo">RFC 7314</span>, <span class="seriesInfo">DOI 10.17487/RFC7314</span>, <time datetime="2014-07" class="refDate">July 2014</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc7314">https://www.rfc-editor.org/info/rfc7314</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC7828">[RFC7828]</dt>
+        <dd>
+<span class="refAuthor">Wouters, P.</span>, <span class="refAuthor">Abley, J.</span>, <span class="refAuthor">Dickinson, S.</span>, and <span class="refAuthor">R. Bellis</span>, <span class="refTitle">"The edns-tcp-keepalive EDNS0 Option"</span>, <span class="seriesInfo">RFC 7828</span>, <span class="seriesInfo">DOI 10.17487/RFC7828</span>, <time datetime="2016-04" class="refDate">April 2016</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc7828">https://www.rfc-editor.org/info/rfc7828</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC6890">[RFC6890]</dt>
+        <dd>
+<span class="refAuthor">Cotton, M.</span>, <span class="refAuthor">Vegoda, L.</span>, <span class="refAuthor">Bonica, R., Ed.</span>, and <span class="refAuthor">B. Haberman</span>, <span class="refTitle">"Special-Purpose IP Address Registries"</span>, <span class="seriesInfo">BCP 153</span>, <span class="seriesInfo">RFC 6890</span>, <span class="seriesInfo">DOI 10.17487/RFC6890</span>, <time datetime="2013-04" class="refDate">April 2013</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc6890">https://www.rfc-editor.org/info/rfc6890</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC7873">[RFC7873]</dt>
+        <dd>
+<span class="refAuthor">Eastlake 3rd, D.</span> and <span class="refAuthor">M. Andrews</span>, <span class="refTitle">"Domain Name System (DNS) Cookies"</span>, <span class="seriesInfo">RFC 7873</span>, <span class="seriesInfo">DOI 10.17487/RFC7873</span>, <time datetime="2016-05" class="refDate">May 2016</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc7873">https://www.rfc-editor.org/info/rfc7873</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC9660">[RFC9660]</dt>
+        <dd>
+<span class="refAuthor">Salgado, H.</span>, <span class="refAuthor">Vergara, M.</span>, and <span class="refAuthor">D. Wessels</span>, <span class="refTitle">"The DNS Zone Version (ZONEVERSION) Option"</span>, <span class="seriesInfo">RFC 9660</span>, <span class="seriesInfo">DOI 10.17487/RFC9660</span>, <time datetime="2024-10" class="refDate">October 2024</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc9660">https://www.rfc-editor.org/info/rfc9660</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC9606">[RFC9606]</dt>
+        <dd>
+<span class="refAuthor">Reddy.K, T.</span> and <span class="refAuthor">M. Boucadair</span>, <span class="refTitle">"DNS Resolver Information"</span>, <span class="seriesInfo">RFC 9606</span>, <span class="seriesInfo">DOI 10.17487/RFC9606</span>, <time datetime="2024-06" class="refDate">June 2024</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc9606">https://www.rfc-editor.org/info/rfc9606</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC7858">[RFC7858]</dt>
+        <dd>
+<span class="refAuthor">Hu, Z.</span>, <span class="refAuthor">Zhu, L.</span>, <span class="refAuthor">Heidemann, J.</span>, <span class="refAuthor">Mankin, A.</span>, <span class="refAuthor">Wessels, D.</span>, and <span class="refAuthor">P. Hoffman</span>, <span class="refTitle">"Specification for DNS over Transport Layer Security (TLS)"</span>, <span class="seriesInfo">RFC 7858</span>, <span class="seriesInfo">DOI 10.17487/RFC7858</span>, <time datetime="2016-05" class="refDate">May 2016</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc7858">https://www.rfc-editor.org/info/rfc7858</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC8484">[RFC8484]</dt>
+        <dd>
+<span class="refAuthor">Hoffman, P.</span> and <span class="refAuthor">P. McManus</span>, <span class="refTitle">"DNS Queries over HTTPS (DoH)"</span>, <span class="seriesInfo">RFC 8484</span>, <span class="seriesInfo">DOI 10.17487/RFC8484</span>, <time datetime="2018-10" class="refDate">October 2018</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc8484">https://www.rfc-editor.org/info/rfc8484</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC9250">[RFC9250]</dt>
+        <dd>
+<span class="refAuthor">Huitema, C.</span>, <span class="refAuthor">Dickinson, S.</span>, and <span class="refAuthor">A. Mankin</span>, <span class="refTitle">"DNS over Dedicated QUIC Connections"</span>, <span class="seriesInfo">RFC 9250</span>, <span class="seriesInfo">DOI 10.17487/RFC9250</span>, <time datetime="2022-05" class="refDate">May 2022</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc9250">https://www.rfc-editor.org/info/rfc9250</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC8126">[RFC8126]</dt>
+        <dd>
+<span class="refAuthor">Cotton, M.</span>, <span class="refAuthor">Leiba, B.</span>, and <span class="refAuthor">T. Narten</span>, <span class="refTitle">"Guidelines for Writing an IANA Considerations Section in RFCs"</span>, <span class="seriesInfo">BCP 26</span>, <span class="seriesInfo">RFC 8126</span>, <span class="seriesInfo">DOI 10.17487/RFC8126</span>, <time datetime="2017-06" class="refDate">June 2017</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc8126">https://www.rfc-editor.org/info/rfc8126</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="I-D.bellis-dnsop-edns-tags">[I-D.bellis-dnsop-edns-tags]</dt>
+        <dd>
+<span class="refAuthor">Bellis, R.</span>, <span class="refAuthor">Clegg, A.</span>, and <span class="refAuthor">P. van Dijk</span>, <span class="refTitle">"DNS EDNS Tags"</span>, <span class="refContent">Work in Progress</span>, <span class="seriesInfo">Internet-Draft, draft-bellis-dnsop-edns-tags-01</span>, <time datetime="2019-03-25" class="refDate">25 March 2019</time>, <span>&lt;<a href="https://datatracker.ietf.org/doc/html/draft-bellis-dnsop-edns-tags-01">https://datatracker.ietf.org/doc/html/draft-bellis-dnsop-edns-tags-01</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC7942">[RFC7942]</dt>
+      <dd>
+<span class="refAuthor">Sheffer, Y.</span> and <span class="refAuthor">A. Farrel</span>, <span class="refTitle">"Improving Awareness of Running Code: The Implementation Status Section"</span>, <span class="seriesInfo">BCP 205</span>, <span class="seriesInfo">RFC 7942</span>, <span class="seriesInfo">DOI 10.17487/RFC7942</span>, <time datetime="2016-07" class="refDate">July 2016</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc7942">https://www.rfc-editor.org/info/rfc7942</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+</dl>
+</section>
+</div>
+</section>
+</div>
+<div id="alternatives">
+<section id="appendix-A">
+      <h2 id="name-alternatives-considered">
+<a href="#appendix-A" class="section-number selfRef">Appendix A. </a><a href="#name-alternatives-considered" class="section-name selfRef">Alternatives Considered</a>
+      </h2>
+<p id="appendix-A-1">This document defines a new EDNS(0) option code instead of encoding the
+signal in the ECS option, because every such encoding collides with a
+rule in <span>[<a href="#RFC7871" class="cite xref">RFC7871</a>]</span>.  This appendix records the encodings considered and
+not adopted.<a href="#appendix-A-1" class="pilcrow">¶</a></p>
+<p id="appendix-A-2">A client can request forwarding and set a limit without supplying an
+address.  The REFUSED guidance in <span><a href="https://rfc-editor.org/rfc/rfc7871#section-7.1.1" class="relref">Section 7.1.1</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span> and
+<span><a href="https://rfc-editor.org/rfc/rfc7871#section-7.5" class="relref">Section 7.5</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span>, and the requirement in
+<span><a href="https://rfc-editor.org/rfc/rfc7871#section-11.2" class="relref">Section 11.2</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span> that a response mirror the ECS fields of the
+query, apply only to a client-supplied address and thus do not cover such
+a query.<a href="#appendix-A-2" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="appendix-A-3.1">
+          <p id="appendix-A-3.1.1">A reserved address used as a sentinel, for example an ECS option
+containing 127.0.0.1/32 that a resolver would read as an instruction
+to substitute the source address it observed.  A resolver acting on it
+must either echo the sentinel, which <span><a href="https://rfc-editor.org/rfc/rfc7871#section-7.5" class="relref">Section 7.5</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span> warns
+yields a response that appears tailored for the network named in the
+query when it is tailored for another, or echo the address it
+substituted, which <span><a href="https://rfc-editor.org/rfc/rfc7871#section-7.3" class="relref">Section 7.3</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span> has an Intermediate
+Nameserver drop because its FAMILY, ADDRESS, and SOURCE PREFIX-LENGTH
+do not match the query.  That drop is also a cache-poisoning defense,
+as <span><a href="https://rfc-editor.org/rfc/rfc7871#section-11.2" class="relref">Section 11.2</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span> explains, since an off-path attacker
+must match those fields for a forged response to be accepted.<a href="#appendix-A-3.1.1" class="pilcrow">¶</a></p>
+<p id="appendix-A-3.1.2">
+Handling of such an address is unspecified in any case.
+<span><a href="https://rfc-editor.org/rfc/rfc7871#section-11.3" class="relref">Section 11.3</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span> recommends that a resolver treat an
+unroutable address as equivalent to its own identity, and
+<span><a href="https://rfc-editor.org/rfc/rfc7871#section-7.5" class="relref">Section 7.5</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span> lists private and unroutable address space
+among the reasons to return REFUSED.  At the time of writing, one
+large public resolver answered a query containing 203.0.113.0/24 with
+REFUSED while another forwarded the same value to the authoritative
+server verbatim.<a href="#appendix-A-3.1.2" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="appendix-A-3.2">
+          <p id="appendix-A-3.2.1">A short ADDRESS field.  <span><a href="https://rfc-editor.org/rfc/rfc7871#section-6" class="relref">Section 6</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span> requires ADDRESS to
+hold exactly the octets needed for SOURCE PREFIX-LENGTH bits and
+recommends FORMERR for a server that receives too few or too many.  An
+empty ADDRESS is valid only with SOURCE PREFIX-LENGTH 0, which already
+means opt-out.<a href="#appendix-A-3.2.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="appendix-A-3.3">
+          <p id="appendix-A-3.3.1">The SCOPE PREFIX-LENGTH field as an extension point.
+<span><a href="https://rfc-editor.org/rfc/rfc7871#section-6" class="relref">Section 6</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span> requires it to be set to 0 in queries.<a href="#appendix-A-3.3.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="appendix-A-3.4">
+          <p id="appendix-A-3.4.1">A novel FAMILY value.  <span><a href="https://rfc-editor.org/rfc/rfc7871#section-7.1.2" class="relref">Section 7.1.2</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span> notes that "at
+least one major authoritative server will ignore the option if FAMILY
+is not 1 or 2", so such a value might degrade quietly, but that
+behavior is unspecified, and the IANA Address Family Numbers registry
+is not the place to record a DNS signaling convention.<a href="#appendix-A-3.4.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="appendix-A-3.5">
+          <p id="appendix-A-3.5.1">An EDNS header flag bit.  The EDNS Header Flags registry holds few
+bits and assigns them under Standards Action, which does not fit an
+experimental client preference.<a href="#appendix-A-3.5.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="appendix-A-3.6">
+          <p id="appendix-A-3.6.1">A bare opt-in with no one-octet form.  The zero-length form defined in
+<a href="#option-format" class="auto internal xref">Section 3.1</a> serves most clients, but on its own it leaves a
+client that wants a limit nowhere to put one, because an ECS option
+requires an address that client may not have, as
+<a href="#relationship-to-ecs" class="auto internal xref">Section 3.4</a> describes.<a href="#appendix-A-3.6.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="appendix-A-3.7">
+          <p id="appendix-A-3.7.1">A wider payload with a family selector and a limit per family.  A
+client cannot predict the family it will be seen as coming from, and
+the extra fields add nothing beyond sending a different value per
+family.<a href="#appendix-A-3.7.1" class="pilcrow">¶</a></p>
+</li>
+      </ul>
+<p id="appendix-A-4">The closest prior art is EDNS-Client-Tag and EDNS-Server-Tag
+<span>[<a href="#I-D.bellis-dnsop-edns-tags" class="cite xref">I-D.bellis-dnsop-edns-tags</a>]</span>, an opaque client-to-server signal with a
+response counterpart, which has the same shape as this design.  That work
+was not completed.<a href="#appendix-A-4" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="open-issues">
+<section id="appendix-B">
+      <h2 id="name-open-issues">
+<a href="#appendix-B" class="section-number selfRef">Appendix B. </a><a href="#name-open-issues" class="section-name selfRef">Open Issues</a>
+      </h2>
+<p id="appendix-B-1">This section records decisions that are provisional in this revision.  It
+will be removed before publication.<a href="#appendix-B-1" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="normal type-1" id="appendix-B-2">
+<li id="appendix-B-2.1">
+          <p id="appendix-B-2.1.1">Whether a response to a query that included this option should always
+include it, as <a href="#resolver-behavior" class="auto internal xref">Section 3.3</a> requires, or should omit it
+where the resolver forwards nothing.  Always including it lets a
+client tell a resolver that declined from one that does not implement
+the option, at the cost of one octet in every such response.<a href="#appendix-B-2.1.1" class="pilcrow">¶</a></p>
+</li>
+        <li id="appendix-B-2.2">
+          <p id="appendix-B-2.2.1">Whether the reported value should be the effective prefix length, as
+specified here, or the number of address bits the resolver forwarded
+while answering that query.  The two differ when the answer comes
+from cache.<a href="#appendix-B-2.2.1" class="pilcrow">¶</a></p>
+</li>
+        <li id="appendix-B-2.3">
+          <p id="appendix-B-2.3.1">Whether a malformed option should be treated as absent, as
+<a href="#resolver-behavior" class="auto internal xref">Section 3.3</a> specifies, or should draw a FORMERR, which
+<span>[<a href="#RFC9660" class="cite xref">RFC9660</a>]</span> requires for its own option and
+<span><a href="https://rfc-editor.org/rfc/rfc7871#section-6" class="relref">Section 6</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span> recommends for a malformed ECS option.<a href="#appendix-B-2.3.1" class="pilcrow">¶</a></p>
+</li>
+        <li id="appendix-B-2.4">
+          <p id="appendix-B-2.4.1">Whether the condition in <span><a href="https://rfc-editor.org/rfc/rfc7871#section-7.2.2" class="relref">Section 7.2.2</a> of [<a href="#RFC7871" class="cite xref">RFC7871</a>]</span>, "When an
+Intermediate Nameserver uses ECS", is read per query or per server.
+<a href="#relationship-to-ecs" class="auto internal xref">Section 3.4</a> reads it per query, which lets a resolver
+answer a query that includes an ECS option without returning one.<a href="#appendix-B-2.4.1" class="pilcrow">¶</a></p>
+</li>
+        <li id="appendix-B-2.5">
+          <p id="appendix-B-2.5.1">Whether the differences listed in <a href="#deviations" class="auto internal xref">Section 5</a> warrant an Updates
+relationship with <span>[<a href="#RFC7871" class="cite xref">RFC7871</a>]</span>.  None of them contradicts a
+requirement of that document, which is why this revision declares no
+such relationship.<a href="#appendix-B-2.5.1" class="pilcrow">¶</a></p>
+</li>
+        <li id="appendix-B-2.6">
+          <p id="appendix-B-2.6.1">The intended status is Experimental and this revision defines no
+experiment.  A later revision should state what is being evaluated
+and what would count as success, and should carry an implementation
+status section as <span>[<a href="#RFC7942" class="cite xref">RFC7942</a>]</span> describes once a reference
+implementation exists.<a href="#appendix-B-2.6.1" class="pilcrow">¶</a></p>
+</li>
+        <li id="appendix-B-2.7">
+          <p id="appendix-B-2.7.1">The registry name requested in the IANA Considerations and the
+human-readable name of the option are provisional.<a href="#appendix-B-2.7.1" class="pilcrow">¶</a></p>
+</li>
+      </ol>
+</section>
+</div>
+<div id="authors-addresses">
+<section id="appendix-C">
+      <h2 id="name-authors-addresses">
+<a href="#name-authors-addresses" class="section-name selfRef">Authors' Addresses</a>
+      </h2>
+<address class="vcard">
+        <div dir="auto" class="left"><span class="fn nameRole">Babak Farrokhi</span></div>
+<div dir="auto" class="left"><span class="org">Quad9</span></div>
+<div dir="auto" class="left"><span class="country-name">Netherlands</span></div>
+<div class="email">
+<span>Email:</span>
+<a href="mailto:babak@farrokhi.net" class="email">babak@farrokhi.net</a>
+</div>
+</address>
+<address class="vcard">
+        <div dir="auto" class="left"><span class="fn nameRole">John Todd</span></div>
+<div dir="auto" class="left"><span class="org">Quad9</span></div>
+<div dir="auto" class="left"><span class="country-name">United States of America</span></div>
+<div class="email">
+<span>Email:</span>
+<a href="mailto:jtodd@quad9.net" class="email">jtodd@quad9.net</a>
+</div>
+</address>
+</section>
+</div>
+<script>const toc = document.getElementById("toc");
+toc.querySelector("h2").addEventListener("click", e => {
+  toc.classList.toggle("active");
+});
+toc.querySelector("nav").addEventListener("click", e => {
+  toc.classList.remove("active");
+});
+</script>
+</body>
+</html>
